@@ -1,4 +1,4 @@
-# Copyright (c) 2025 Scientific Informatics, LLC
+# Copyright (c) 2025 Scientific Informatics, LLC.
 #
 # This software is proprietary and dual-licensed.
 # Licensed under the Prosperity Public License 3.0 (the "License").
