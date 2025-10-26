@@ -42,4 +42,3 @@ jobs:
         # No 'user' or 'password' fields are needed here.
         # The action automatically uses the OIDC token from the
         # 'id-token: write' permission.
-
