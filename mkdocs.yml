@@ -1,7 +1,0 @@
-site_name: my_python_project
-theme:
-  name: material
-
-nav:
-  - Home: index.md
-  - 'How-to Guide': HOW_TO_GUIDE.md

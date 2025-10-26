@@ -8,7 +8,8 @@
 #
 # Source Code: https://github.com/CoReason-AI/omopcloudetl_core
 
-from omopcloudetl_core.main import hello_world
+from loguru import logger
 
-def test_hello_world():
-    assert hello_world() == "Hello World!"
+def hello_world():
+    logger.info("Hello World!")
+    return "Hello World!"

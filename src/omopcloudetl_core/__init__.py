@@ -8,7 +8,14 @@
 #
 # Source Code: https://github.com/CoReason-AI/omopcloudetl_core
 
-from omopcloudetl_core.main import hello_world
+"""
+This package is the foundation of the OmopCloudEtl ecosystem. It defines the core abstractions, data models (Configuration, DML, Workflow), and the compilation logic.
+"""
 
-def test_hello_world():
-    assert hello_world() == "Hello World!"
+__version__ = "0.1.0"
+__author__ = "Gowtham A Rao"
+__email__ = "gowtham.rao@coreason.ai"
+
+from .main import hello_world
+
+__all__ = ["hello_world"]
