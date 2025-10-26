@@ -16,6 +16,3 @@ __version__ = "0.1.0"
 __author__ = "Gowtham A Rao"
 __email__ = "gowtham.rao@scientific-informatics.com"
 
-from .main import hello_world
-
-__all__ = ["hello_world"]

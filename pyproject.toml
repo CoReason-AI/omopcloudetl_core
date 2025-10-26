@@ -10,14 +10,31 @@ packages = [{include = "omopcloudetl_core", from = "src"}]
 [tool.poetry.dependencies]
 python = ">=3.11"
 loguru = "^0.7.2"
+pydantic = ">=2.0"
+pydantic-settings = ">=2.0"
+PyYAML = "*"
+Jinja2 = "*"
+sqlparse = "*"
+colorama = "*"
+networkx = "*"
+tenacity = ">=8.0.0"
+requests = "*"
+diskcache = "*"
+importlib-metadata = "*"
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^8.2.2"
-ruff = "^0.4.8"
+pytest = "*"
+pytest-mock = "*"
+ruff = "*"
+mypy = "*"
+requests-mock = "*"
 pre-commit = "^3.7.1"
 pytest-cov = "^5.0.0"
 mkdocs = "^1.6.0"
 mkdocs-material = "^9.5.26"
+
+[tool.ruff]
+line-length = 120
 
 [build-system]
 requires = ["poetry-core"]
