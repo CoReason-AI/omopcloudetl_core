@@ -5,46 +5,55 @@ from typing import Optional
 
 class OmopCloudEtlError(Exception):
     """Base exception for all application-specific errors."""
+
     pass
 
 
 class ConfigurationError(OmopCloudEtlError):
     """Raised for configuration-related errors."""
+
     pass
 
 
 class DatabaseConnectionError(OmopCloudEtlError):
     """Raised for errors related to database connectivity."""
+
     pass
 
 
 class WorkflowError(OmopCloudEtlError):
     """Raised for errors during workflow definition or execution."""
+
     pass
 
 
 class DiscoveryError(OmopCloudEtlError):
     """Raised for errors during component discovery."""
+
     pass
 
 
 class SpecificationError(OmopCloudEtlError):
     """Raised for errors related to CDM specification handling."""
+
     pass
 
 
 class SecretAccessError(OmopCloudEtlError):
     """Raised when a secret cannot be accessed."""
+
     pass
 
 
 class DMLValidationError(OmopCloudEtlError):
     """Raised for errors in DML definition files."""
+
     pass
 
 
 class CompilationError(OmopCloudEtlError):
     """Raised for failures during the DML to SQL compilation process."""
+
     pass
 
 
@@ -58,6 +67,7 @@ class SQLExecutionError(OmopCloudEtlError):
         step_name (Optional[str]): The name of the workflow step where the error occurred.
         query_id (Optional[str]): The database-specific query ID, if available.
     """
+
     def __init__(
         self,
         message: str,

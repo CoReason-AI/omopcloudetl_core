@@ -1,4 +1,3 @@
-
 import pytest
 from omopcloudetl_core import exceptions
 
@@ -55,6 +54,7 @@ def test_sql_execution_error_str_representation():
     assert "[Step: step_one, QueryID: query-abc]" in error_str
     assert "Underlying Error: DB Error" in error_str
     assert "Failed SQL: SELECT 1" in error_str
+
 
 def test_raising_exceptions():
     """Test that the custom exceptions can be raised and caught correctly."""
