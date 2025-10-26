@@ -34,9 +34,7 @@ class TestLogging(unittest.TestCase):
         """Test that the ColorFormatter adds color codes to log levels."""
         # Use a format string that includes the level name
         formatter = ColorFormatter("%(levelname)s - %(message)s")
-        record = logging.LogRecord(
-            "test", logging.INFO, "/path/to/test", 1, "Test message", (), None
-        )
+        record = logging.LogRecord("test", logging.INFO, "/path/to/test", 1, "Test message", (), None)
 
         # The levelname should be wrapped in color codes
         formatted_message = formatter.format(record)
