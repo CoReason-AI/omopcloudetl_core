@@ -53,8 +53,11 @@ jobs:
           restore-keys: |
             v1-${{ runner.os }}-python-${{ matrix.python-version }}-
 
+      - name: Install Poetry
+        run: pipx install poetry
+
       - name: Install dependencies
-        run: pip install -e ".[dev]"
+        run: poetry install --with dev
         shell: bash
 
       - name: Run tests
@@ -64,7 +67,7 @@ jobs:
           PGUSER: ${{ secrets.DB_POSTGRES_TEST_USERNAME}}
           PGPASSWORD: ${{ secrets.DB_POSTGRES_TEST_PASSWORD}}
           PGDATABASE: ${{ secrets.DB_POSTGRES_TEST_PATIENT_SYNTHETIC_DATA}}
-        run: pytest
+        run: poetry run pytest
         shell: bash
 
       - name: Upload coverage to Codecov
