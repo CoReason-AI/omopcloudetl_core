@@ -1,4 +1,4 @@
-# Copyright (c) Scientific Informatics, LLC
+# Copyright (c) 2025 Scientific Informatics, LLC
 #
 # This software is proprietary and dual-licensed.
 # Licensed under the Prosperity Public License 3.0 (the "License").
@@ -14,7 +14,7 @@ This package is the foundation of the OmopCloudEtl ecosystem. It defines the cor
 
 __version__ = "0.1.0"
 __author__ = "Gowtham A Rao"
-__email__ = "gowtham.rao@coreason.ai"
+__email__ = "gowtham.rao@scientific-informatics.com"
 
 from .main import hello_world
 
