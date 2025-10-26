@@ -106,7 +106,7 @@ jobs:
         shell: bash
 
       - name: Build documentation
-        run: mkdocs build --strict
+        run: poetry run mkdocs build --strict
         shell: bash
 
   release:
