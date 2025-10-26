@@ -97,8 +97,12 @@ jobs:
           restore-keys: |
             v1-${{ runner.os }}-python-3.12-
 
+      - name: Install Poetry
+        run: pipx install poetry
+        shell: bash
+
       - name: Install dependencies
-        run: pip install -e ".[dev]"
+        run: poetry install --with dev
         shell: bash
 
       - name: Build documentation
