@@ -1,3 +1,5 @@
-site_name: OmopCloudEtl Core
+site_name: omopcloudetl_core
+theme:
+  name: material
 nav:
   - Home: index.md

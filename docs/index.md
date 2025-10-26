@@ -1,3 +1,3 @@
-# Welcome to OmopCloudEtl Core
+# Welcome to omopcloudetl_core
 
-This is the documentation for the OmopCloudEtl Core project.
+This is the documentation for the omopcloudetl_core project.
