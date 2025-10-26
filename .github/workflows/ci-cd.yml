@@ -58,7 +58,7 @@ jobs:
         shell: bash
 
       - name: Install dependencies
-        run: poetry install --with dev
+        run: run: poetry run pytest --cov=src --cov-report=xml
         shell: bash
 
       - name: Run tests
