@@ -92,7 +92,9 @@ class MetadataManager:
             update_clauses.extend(["rows_affected = ?", "rows_inserted = ?", "rows_updated = ?", "rows_deleted = ?"])
             params.extend([metrics.rows_affected, metrics.rows_inserted, metrics.rows_updated, metrics.rows_deleted])
         elif isinstance(metrics, LoadMetrics):
-            update_clauses.extend(["rows_processed = ?", "rows_inserted = ?", "rows_rejected = ?", "error_details_uri = ?"])
+            update_clauses.extend(
+                ["rows_processed = ?", "rows_inserted = ?", "rows_rejected = ?", "error_details_uri = ?"]
+            )
             params.extend(
                 [metrics.rows_processed, metrics.rows_inserted, metrics.rows_rejected, metrics.error_details_uri]
             )
