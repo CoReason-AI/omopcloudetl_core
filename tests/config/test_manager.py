@@ -130,6 +130,7 @@ def test_load_config_secret_resolution_fails(config_manager, tmp_path: Path):
     with pytest.raises(ConfigurationError, match="Failed to resolve secret"):
         config_manager.load_project_config(config_file)
 
+
 def test_load_config_unsupported_secret_provider(config_manager, tmp_path: Path):
     """
     Tests that a ConfigurationError is raised for an unsupported secret provider.

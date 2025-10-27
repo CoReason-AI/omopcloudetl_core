@@ -16,15 +16,17 @@ from omopcloudetl_core.abstractions.secrets import BaseSecretsProvider, Environm
 from omopcloudetl_core.exceptions import DiscoveryError
 from omopcloudetl_core.config.models import SecretsConfig
 
+
 # A mock provider for testing entry point loading
 class MockSecretsProvider(BaseSecretsProvider):
     def __init__(self, **kwargs):
         self.config = kwargs
+
     def get_secret(self, secret_identifier: str) -> str:
         return "mock-secret"
 
-class TestDiscoveryManager:
 
+class TestDiscoveryManager:
     @pytest.fixture
     def manager(self):
         return DiscoveryManager()
@@ -43,21 +45,23 @@ class TestDiscoveryManager:
     def test_get_secrets_provider_unsupported_raises_error(self, manager):
         """Test that an unsupported provider type raises a DiscoveryError."""
         config = SecretsConfig(provider_type="unsupported_provider")
-        with patch('omopcloudetl_core.discovery.entry_points', return_value=[]):
+        with patch("omopcloudetl_core.discovery.entry_points", return_value=[]):
             with pytest.raises(DiscoveryError, match="Discovery failed"):
                 manager.get_secrets_provider(config)
 
     def test_get_secrets_provider_entry_point_loading(self, manager):
         """Simulate discovering a provider via entry points."""
+
         class MockEntryPoint:
             name = "mock_provider"
+
             def load(self):
                 return MockSecretsProvider
 
         mock_ep = MockEntryPoint()
 
         config = SecretsConfig(provider_type="mock_provider", configuration={"key": "value"})
-        with patch('omopcloudetl_core.discovery.entry_points', return_value=[mock_ep]) as mock_call:
+        with patch("omopcloudetl_core.discovery.entry_points", return_value=[mock_ep]) as mock_call:
             provider = manager.get_secrets_provider(config)
             assert isinstance(provider, MockSecretsProvider)
             assert provider.config == {"key": "value"}
