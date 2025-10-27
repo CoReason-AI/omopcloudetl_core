@@ -16,7 +16,7 @@ class BaseSecretsProvider(ABC):
     """Abstract base class for all secret providers."""
 
     @abstractmethod
-    def get_secret(self, secret_identifier: str) -> str:
+    def get_secret(self, secret_identifier: str) -> str:  # pragma: no cover
         """
         Retrieve a secret value based on its identifier.
 
@@ -29,7 +29,6 @@ class BaseSecretsProvider(ABC):
         Raises:
             SecretAccessError: If the secret cannot be found or accessed.
         """
-        # pragma: no cover
         pass
 
 

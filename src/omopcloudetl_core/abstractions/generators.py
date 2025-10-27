@@ -19,7 +19,7 @@ class BaseDDLGenerator(ABC):
     """Abstract base class for dialect-specific DDL generators."""
 
     @abstractmethod
-    def generate_ddl(self, specification: CDMSpecification, schema_name: str, options: Dict[str, Any]) -> List[str]:
+    def generate_ddl(self, specification: CDMSpecification, schema_name: str, options: Dict[str, Any]) -> List[str]:  # pragma: no cover
         """
         Generates a list of DDL statements for a given CDM specification.
 
@@ -31,7 +31,6 @@ class BaseDDLGenerator(ABC):
         Returns:
             A list of SQL DDL statements.
         """
-        # pragma: no cover
         pass
 
 
@@ -39,7 +38,7 @@ class BaseSQLGenerator(ABC):
     """Abstract base class for dialect-specific SQL generators from DML definitions."""
 
     @abstractmethod
-    def generate_transform_sql(self, dml_definition: DMLDefinition, context: Dict[str, Any]) -> str:
+    def generate_transform_sql(self, dml_definition: DMLDefinition, context: Dict[str, Any]) -> str:  # pragma: no cover
         """
         Generates an idempotent SQL transformation statement from a DML definition.
 
@@ -50,5 +49,4 @@ class BaseSQLGenerator(ABC):
         Returns:
             A single, idempotent SQL statement (e.g., MERGE or a transactional block).
         """
-        # pragma: no cover
         pass

@@ -143,3 +143,11 @@ def test_no_secret_resolution_if_password_present(config_file_factory, mock_disc
 
     mock_discovery_manager.get_secrets_provider.assert_not_called()
     assert config.connection.password.get_secret_value() == "direct_password"
+
+
+def test_load_config_not_a_dictionary(config_file_factory):
+    """Test that a ConfigurationError is raised if the YAML root is not a dictionary."""
+    config_path = config_file_factory("- item1\n- item2")  # A list, not a dict
+    manager = ConfigManager()
+    with pytest.raises(ConfigurationError, match="must be a dictionary"):
+        manager.load_project_config(config_path)

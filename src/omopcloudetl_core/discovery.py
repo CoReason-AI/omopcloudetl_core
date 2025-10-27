@@ -37,21 +37,21 @@ class DiscoveryManager:
     def _discover_components(self, entry_point_group: str) -> Dict[str, Type]:
         """Generic discovery method for a given entry point group."""
         discovered_components: Dict[str, Type] = {}
-        try:
-            # Use importlib.metadata to find installed plugins
-            eps = entry_points()
-            group_eps: Iterable[EntryPoint] = []
-            if hasattr(eps, "select"):  # New API in Python 3.10+
-                group_eps = eps.select(group=entry_point_group)
-            elif isinstance(eps, dict):  # Deprecated dict-based API
-                group_eps = eps.get(entry_point_group, [])
-            else:  # Fallback for iterables, like the list from mocks
-                group_eps = eps
+        # Use importlib.metadata to find installed plugins
+        eps = entry_points()
+        group_eps: Iterable[EntryPoint] = []
+        if hasattr(eps, "select"):  # New API in Python 3.10+
+            group_eps = eps.select(group=entry_point_group)
+        elif isinstance(eps, dict):  # Deprecated dict-based API
+            group_eps = eps.get(entry_point_group, [])
+        else:  # Fallback for iterables, like the list from mocks
+            group_eps = eps
 
-            for entry in group_eps:
+        for entry in group_eps:
+            try:
                 discovered_components[entry.name] = entry.load()
-        except Exception as e:
-            raise DiscoveryError(f"Failed to discover or load components from group '{entry_point_group}'") from e
+            except Exception as e:
+                raise DiscoveryError(f"Failed to load component '{entry.name}' from group '{entry_point_group}'") from e
         return discovered_components
 
     def get_secrets_provider(self, config: Optional[SecretsConfig] = None) -> BaseSecretsProvider:

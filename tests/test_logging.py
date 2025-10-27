@@ -100,3 +100,19 @@ def test_log_format_includes_thread_name():
     log_output = log_stream.getvalue()
     assert f"[{custom_thread_name}]" in log_output
     assert log_message in log_output
+
+
+def test_color_formatter_no_color():
+    """Test that the ColorFormatter does not add color codes for an unknown level."""
+    logger = setup_logging(logger_name="test_no_color_logger")
+    formatter = logger.handlers[0].formatter
+
+    # Use a custom log level that is not in the LEVEL_COLORS map
+    CUSTOM_LEVEL = 99
+    custom_record = logging.LogRecord("test", CUSTOM_LEVEL, "/path", 1, "Custom message", (), None)
+    formatted_message = formatter.format(custom_record)
+
+    # Check that no ANSI escape codes are present
+    assert not formatted_message.startswith(Fore.GREEN)
+    assert "Custom message" in formatted_message
+    assert not formatted_message.endswith(Style.RESET_ALL)

@@ -140,3 +140,31 @@ def test_compilation_error_on_missing_file(compiler, tmp_path):
     # Use an empty directory as the base path, so transform.yml will be missing
     with pytest.raises(CompilationError, match="Failed to compile DML step"):
         compiler.compile(workflow_config, tmp_path)
+
+
+def test_compile_ddl_step_missing_schema_ref(compiler, workflow_base_path):
+    """Test CompilationError on a DDL step with a missing schema reference."""
+    workflow_dict = deepcopy(WORKFLOW_DICT)
+    workflow_dict["steps"] = [
+        {"name": "generate_ddl", "type": "ddl", "cdm_version": "5.4", "target_schema_ref": "non_existent_cdm"}
+    ]
+    workflow_config = WorkflowConfig(**workflow_dict)
+    with pytest.raises(CompilationError, match="Schema reference 'non_existent_cdm' not found"):
+        compiler.compile(workflow_config, workflow_base_path)
+
+
+def test_compile_bulk_load_step_missing_schema_ref(compiler, workflow_base_path):
+    """Test CompilationError on a BulkLoad step with a missing schema reference."""
+    workflow_dict = deepcopy(WORKFLOW_DICT)
+    workflow_dict["steps"] = [
+        {
+            "name": "load_data",
+            "type": "bulk_load",
+            "source_uri_pattern": "/path/to/data",
+            "target_table": "my_table",
+            "target_schema_ref": "non_existent_target",
+        }
+    ]
+    workflow_config = WorkflowConfig(**workflow_dict)
+    with pytest.raises(CompilationError, match="Schema reference 'non_existent_target' not found"):
+        compiler.compile(workflow_config, workflow_base_path)

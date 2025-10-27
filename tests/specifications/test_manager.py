@@ -90,3 +90,30 @@ def test_fetch_specification_http_error(spec_manager: SpecificationManager, requ
 
     with pytest.raises(SpecificationError, match="Failed to fetch remote specification"):
         spec_manager.fetch_specification(version)
+
+
+def test_fetch_specification_parsing_error(spec_manager: SpecificationManager, requests_mock: requests_mock.Mocker):
+    """Test that a SpecificationError is raised on CSV parsing failure."""
+    version = "5.4"
+    spec_url = f"{OHDSI_REPO_URL}/OMOP_CDM_v{version}_Field_Level.csv"
+    # Malformed CSV missing the required 'cdmTableName' header
+    malformed_csv = "wrongHeader,cdmFieldName,isRequired\nval1,val2,val3"
+    requests_mock.get(spec_url, text=malformed_csv)
+
+    with pytest.raises(SpecificationError, match="Failed to parse specification"):
+        spec_manager.fetch_specification(version)
+
+
+def test_specification_manager_custom_cache_dir(tmp_path: Path):
+    """Test that the SpecificationManager correctly uses a custom cache directory."""
+    custom_cache = tmp_path / "custom_cache"
+    manager = SpecificationManager(cache_dir=custom_cache)
+    assert manager.cache.directory == str(custom_cache)
+
+
+def test_specification_manager_default_cache_dir():
+    """Test that the SpecificationManager defaults to a cache in the home directory."""
+    # This test is a bit indirect, but it exercises the 'cache_dir is None' branch
+    # without making assumptions about the runner's home directory structure.
+    manager = SpecificationManager()
+    assert ".omopcloudetl_core" in manager.cache.directory

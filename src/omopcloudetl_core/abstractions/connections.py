@@ -39,39 +39,34 @@ class BaseConnection(ABC):
 
     @property
     @abstractmethod
-    def provider_type(self) -> str:
+    def provider_type(self) -> str:  # pragma: no cover
         """Return the unique identifier for the database provider (e.g., 'databricks')."""
-        # pragma: no cover
         pass
 
     @property
     @abstractmethod
-    def scalability_tier(self) -> ScalabilityTier:
+    def scalability_tier(self) -> ScalabilityTier:  # pragma: no cover
         """Return the scalability tier of the database platform."""
-        # pragma: no cover
         pass
 
     @abstractmethod
-    def connect(self) -> None:
+    def connect(self) -> None:  # pragma: no cover
         """
         Establishes the database connection.
         Implementations MUST use the tenacity library for connection retries.
         """
-        # pragma: no cover
         pass
 
     @abstractmethod
-    def close(self) -> None:
+    def close(self) -> None:  # pragma: no cover
         """Closes the database connection."""
-        # pragma: no cover
         pass
 
     @abstractmethod
-    def execute_sql(self, sql: str, commit: bool = True) -> ExecutionMetrics:
+    def execute_sql(self, sql: str, commit: bool = True) -> ExecutionMetrics:  # pragma: no cover
         """
         Executes a SQL statement and returns structured execution metrics.
         """
-        # pragma: no cover
         pass
 
     @abstractmethod
@@ -82,7 +77,7 @@ class BaseConnection(ABC):
         target_table: str,
         source_format_options: Dict[str, Any],
         load_options: Dict[str, Any],
-    ) -> LoadMetrics:
+    ) -> LoadMetrics:  # pragma: no cover
         """
         Instructs the compute engine to load data directly from a cloud storage URI.
 
@@ -97,5 +92,4 @@ class BaseConnection(ABC):
         Returns:
             Structured load metrics.
         """
-        # pragma: no cover
         pass
