@@ -2,30 +2,35 @@
 #
 # This software is proprietary and dual-licensed.
 # Licensed under the Prosperity Public License 3.0 (the "License").
-# A copy of the license is available at https://prosperitylicense.com/versions/3.0.0
+# A 'copy' of the license is available at https://prosperitylicense.com/versions/3.0.0
 # For details, see the LICENSE file.
 # Commercial use beyond a 30-day trial requires a separate license.
 #
 # Source Code: https://github.com/CoReason-AI/omopcloudetl_core
 
+from typing import Any, Dict, Optional, Sequence, Type
+
 import pytest
-from typing import Any, Dict, Type
+
 from omopcloudetl_core.abstractions.connections import BaseConnection, ScalabilityTier
 from omopcloudetl_core.abstractions.generators import BaseDDLGenerator, BaseSQLGenerator
 from omopcloudetl_core.config.models import ConnectionConfig
 from omopcloudetl_core.models.metrics import ExecutionMetrics, LoadMetrics
 
 
+# A minimal concrete implementation of BaseSQLGenerator for testing purposes
 class _TestSQLGenerator(BaseSQLGenerator):
     def generate_transform_sql(self, dml_definition: Any, context: Dict[str, Any]) -> str:
         return "SELECT 1;"
 
 
+# A minimal concrete implementation of BaseDDLGenerator for testing purposes
 class _TestDDLGenerator(BaseDDLGenerator):
     def generate_ddl(self, specification: Any, schema_name: str, options: dict) -> list[str]:
         return ["CREATE TABLE test;"]
 
 
+# A minimal, fully compliant concrete implementation of BaseConnection
 class ConcreteConnection(BaseConnection):
     SQL_GENERATOR_CLASS: Type[BaseSQLGenerator] = _TestSQLGenerator
     DDL_GENERATOR_CLASS: Type[BaseDDLGenerator] = _TestDDLGenerator
@@ -44,7 +49,7 @@ class ConcreteConnection(BaseConnection):
     def close(self):
         pass
 
-    def execute_sql(self, sql: str, commit: bool = True) -> ExecutionMetrics:
+    def execute_sql(self, sql: str, params: Optional[Sequence[Any]] = None, commit: bool = True) -> ExecutionMetrics:
         return ExecutionMetrics(rows_affected=1)
 
     def bulk_load(
