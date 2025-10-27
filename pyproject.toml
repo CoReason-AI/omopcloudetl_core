@@ -33,6 +33,7 @@ pytest-mock = "*"
 mypy = "*"
 requests-mock = "*"
 types-PyYAML = "*"
+types-requests = "*"
 
 [build-system]
 requires = ["poetry-core"]

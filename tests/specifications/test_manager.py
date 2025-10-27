@@ -116,6 +116,7 @@ def test_parse_missing_csv_column(manager: SpecificationManager, requests_mock):
     with pytest.raises(SpecificationError, match="Failed to parse CDM specification"):
         manager.fetch_specification(VERSION)
 
+
 def test_cache_is_used(manager: SpecificationManager, mocker):
     """Verify that the diskcache is actually used."""
     mock_cache = MagicMock()

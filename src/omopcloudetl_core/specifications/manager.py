@@ -59,9 +59,7 @@ class SpecificationManager:
             field_name = row["cdmFieldName"].lower()
 
             if table_name not in tables:
-                tables[table_name] = CDMTableSpec(
-                    name=table_name, fields=[], primary_key=[]
-                )  # Placeholder for PK
+                tables[table_name] = CDMTableSpec(name=table_name, fields=[], primary_key=[])  # Placeholder for PK
 
             tables[table_name].fields.append(
                 CDMFieldSpec(
@@ -76,9 +74,7 @@ class SpecificationManager:
 
         return CDMSpecification(version=version, tables=tables)
 
-    def fetch_specification(
-        self, version: str, local_path: Optional[Path] = None
-    ) -> CDMSpecification:
+    def fetch_specification(self, version: str, local_path: Optional[Path] = None) -> CDMSpecification:
         """
         Fetches a CDM specification, using a cache to avoid repeated downloads.
 
