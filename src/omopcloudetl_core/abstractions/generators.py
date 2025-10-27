@@ -23,7 +23,7 @@ class BaseDDLGenerator(ABC):
     def generate_ddl(
         self, specification: "CDMSpecification", schema_name: str, options: dict
     ) -> List[str]:  # pragma: no cover
-        """Generates DDL statements from a CDM specification."""
+        """Generates DDL statements for a given CDM specification."""
         pass
 
 
