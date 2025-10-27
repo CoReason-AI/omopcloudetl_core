@@ -8,9 +8,12 @@
 #
 # Source Code: https://github.com/CoReason-AI/omopcloudetl_core
 
-from pydantic import BaseModel, SecretStr
+from typing import Any, Dict, Optional
+
+from pydantic import BaseModel, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import Optional, Dict, Any
+
+from ..exceptions import ConfigurationError
 
 
 class SecretsConfig(BaseModel):
@@ -47,3 +50,13 @@ class ProjectConfig(BaseModel):
     orchestrator: OrchestratorConfig
     schemas: Dict[str, str]
     secrets: Optional[SecretsConfig] = None
+
+    @model_validator(mode="after")
+    def check_secrets_provider_configured(self) -> "ProjectConfig":
+        """Ensure that if a secret is used for the password, a secrets provider is configured."""
+        if self.connection.password_secret_id and not self.connection.password:
+            if not self.secrets:
+                raise ConfigurationError(
+                    "Connection specifies 'password_secret_id' but no 'secrets' provider is configured."
+                )
+        return self

@@ -35,6 +35,8 @@ orchestrator:
 schemas:
   source: "raw"
   target: "cdm"
+secrets:
+  provider_type: "environment"
 """
 
 
