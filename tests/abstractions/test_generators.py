@@ -9,15 +9,14 @@
 # Source Code: https://github.com/CoReason-AI/omopcloudetl_core
 
 from abc import ABC
-from omopcloudetl_core.abstractions.connections import BaseConnection, ScalabilityTier
+from omopcloudetl_core.abstractions.generators import BaseDDLGenerator, BaseSQLGenerator
 
 
-def test_base_connection_is_abc():
-    """Tests that BaseConnection is an abstract base class."""
-    assert issubclass(BaseConnection, ABC)
+def test_base_ddl_generator_is_abc():
+    """Tests that BaseDDLGenerator is an abstract base class."""
+    assert issubclass(BaseDDLGenerator, ABC)
 
 
-def test_scalability_tier_enum():
-    """Tests that the ScalabilityTier enum has the correct values."""
-    assert ScalabilityTier.TIER_1_HORIZONTAL.value == 1
-    assert ScalabilityTier.TIER_3_SINGLE_NODE.value == 3
+def test_base_sql_generator_is_abc():
+    """Tests that BaseSQLGenerator is an abstract base class."""
+    assert issubclass(BaseSQLGenerator, ABC)
