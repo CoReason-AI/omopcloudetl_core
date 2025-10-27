@@ -13,11 +13,14 @@ import yaml
 from pydantic import ValidationError, SecretStr
 from omopcloudetl_core.config.models import ProjectConfig
 from omopcloudetl_core.exceptions import ConfigurationError
-from omopcloudetl_core.abstractions.secrets import EnvironmentSecretsProvider
+from omopcloudetl_core.discovery import DiscoveryManager
 
 
 class ConfigManager:
     """Manages the loading and validation of project configuration."""
+
+    def __init__(self) -> None:
+        self.discovery_manager = DiscoveryManager()
 
     def load_project_config(self, config_path: Path) -> ProjectConfig:
         """
@@ -49,9 +52,7 @@ class ConfigManager:
 
         # Secret Resolution Logic
         if config.connection.password_secret_id and not config.connection.password:
-            # For now, defaulting to EnvironmentSecretsProvider as per spec phase
-            # DiscoveryManager will be used in a later phase
-            secrets_provider = EnvironmentSecretsProvider()
+            secrets_provider = self.discovery_manager.get_secrets_provider(config.secrets)
             resolved_password = secrets_provider.get_secret(config.connection.password_secret_id)
             config.connection.password = SecretStr(resolved_password)
 

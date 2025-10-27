@@ -16,7 +16,7 @@ class BaseSecretsProvider(ABC):
     """Abstract base class for a secrets provider."""
 
     @abstractmethod
-    def get_secret(self, secret_identifier: str) -> str:
+    def get_secret(self, secret_identifier: str) -> str:  # pragma: no cover
         """
         Retrieves a secret value for a given identifier.
 

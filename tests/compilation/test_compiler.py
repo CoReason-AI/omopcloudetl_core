@@ -9,12 +9,16 @@
 # Source Code: https://github.com/CoReason-AI/omopcloudetl_core
 
 from pathlib import Path
-from unittest.mock import MagicMock, patch, mock_open
+from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
 from omopcloudetl_core.compilation.compiler import WorkflowCompiler
 from omopcloudetl_core.config.models import ConnectionConfig, ProjectConfig
-from omopcloudetl_core.exceptions import DMLValidationError, WorkflowError
+from omopcloudetl_core.exceptions import (
+    CompilationError,
+    DMLValidationError,
+    WorkflowError,
+)
 from omopcloudetl_core.models.workflow import (
     BulkLoadWorkflowStep,
     CompiledBulkLoadStep,
@@ -186,15 +190,168 @@ def test_dag_validation_failure(MockSpecManager, MockDiscoveryManager, mock_proj
 
 @patch("omopcloudetl_core.compilation.compiler.DiscoveryManager")
 @patch("omopcloudetl_core.compilation.compiler.SpecificationManager")
-def test_dml_validation_error(MockSpecManager, MockDiscoveryManager, mock_project_config, mock_connection):
-    """Test that compilation fails with an invalid DML file."""
+def test_dml_validation_error_on_load(MockSpecManager, MockDiscoveryManager, mock_project_config, mock_connection):
+    """Test that DMLValidationError is raised for an invalid DML file."""
     MockDiscoveryManager.return_value.get_generators.return_value = (MagicMock(), MagicMock())
     compiler = WorkflowCompiler(mock_project_config, mock_connection)
     workflow_config = WorkflowConfig(
         workflow_name="test_wf",
         steps=[DMLWorkflowStep(name="bad_dml", dml_file="bad.yml")],
     )
-
-    m_open = mock_open(read_data="this is not valid yaml!")
+    # Mock file reading with invalid DML content that is valid YAML
+    m_open = mock_open(read_data="key: value")
     with patch("builtins.open", m_open), pytest.raises(DMLValidationError):
         compiler.compile(workflow_config, Path("/workflows"))
+
+
+@patch("omopcloudetl_core.compilation.compiler.DiscoveryManager")
+@patch("omopcloudetl_core.compilation.compiler.SpecificationManager")
+def test_dml_yaml_error(MockSpecManager, MockDiscoveryManager, mock_project_config, mock_connection):
+    """Test that DMLValidationError is raised for a malformed YAML file."""
+    MockDiscoveryManager.return_value.get_generators.return_value = (MagicMock(), MagicMock())
+    compiler = WorkflowCompiler(mock_project_config, mock_connection)
+    workflow_config = WorkflowConfig(
+        workflow_name="test_wf",
+        steps=[DMLWorkflowStep(name="bad_dml", dml_file="bad.yml")],
+    )
+    # Mock file reading with invalid YAML content
+    m_open = mock_open(read_data="key: - value")
+    with patch("builtins.open", m_open), pytest.raises(DMLValidationError):
+        compiler.compile(workflow_config, Path("/workflows"))
+
+
+@patch("omopcloudetl_core.compilation.compiler.DiscoveryManager")
+@patch("omopcloudetl_core.compilation.compiler.SpecificationManager")
+def test_compile_schema_ref_not_found(MockSpecManager, MockDiscoveryManager, mock_project_config, mock_connection):
+    """Test CompilationError when a schema_ref is not found."""
+    MockDiscoveryManager.return_value.get_generators.return_value = (MagicMock(), MagicMock())
+    compiler = WorkflowCompiler(mock_project_config, mock_connection)
+
+    # Test with DDL step
+    ddl_workflow = WorkflowConfig(
+        workflow_name="test_wf",
+        steps=[DDLWorkflowStep(name="ddl_step", cdm_version="5.4", target_schema_ref="non_existent_schema")],
+    )
+    with pytest.raises(CompilationError, match="Schema reference 'non_existent_schema' not found"):
+        compiler.compile(ddl_workflow, Path("/workflows"))
+
+    # Test with BulkLoad step
+    bulk_load_workflow = WorkflowConfig(
+        workflow_name="test_wf",
+        steps=[
+            BulkLoadWorkflowStep(
+                name="load_step",
+                source_uri_pattern="s3://bucket/data",
+                target_table="person",
+                target_schema_ref="non_existent_schema",
+            )
+        ],
+    )
+    with pytest.raises(CompilationError, match="Schema reference 'non_existent_schema' not found"):
+        compiler.compile(bulk_load_workflow, Path("/workflows"))
+
+
+@patch("omopcloudetl_core.compilation.compiler.DiscoveryManager")
+@patch("omopcloudetl_core.compilation.compiler.SpecificationManager")
+def test_compile_sql_file_not_found(MockSpecManager, MockDiscoveryManager, mock_project_config, mock_connection):
+    """Test CompilationError when a SQL file is not found."""
+    MockDiscoveryManager.return_value.get_generators.return_value = (MagicMock(), MagicMock())
+    compiler = WorkflowCompiler(mock_project_config, mock_connection)
+    workflow_config = WorkflowConfig(
+        workflow_name="test_wf",
+        steps=[SQLWorkflowStep(name="sql_step", sql_file="non_existent.sql")],
+    )
+    m_open = mock_open()
+    m_open.side_effect = IOError("File not found")
+    with patch("builtins.open", m_open), pytest.raises(CompilationError, match="Failed to read SQL file"):
+        compiler.compile(workflow_config, Path("/workflows"))
+
+
+@patch("omopcloudetl_core.compilation.compiler.DiscoveryManager")
+@patch("omopcloudetl_core.compilation.compiler.SpecificationManager")
+def test_dag_validation_undefined_dependency(MockSpecManager, MockDiscoveryManager, mock_project_config, mock_connection):
+    """Test that compilation fails with an undefined dependency."""
+    MockDiscoveryManager.return_value.get_generators.return_value = (MagicMock(), MagicMock())
+    compiler = WorkflowCompiler(mock_project_config, mock_connection)
+    workflow_config = WorkflowConfig(
+        workflow_name="test_wf",
+        steps=[
+            SQLWorkflowStep(name="step_a", depends_on=["step_b"], sql_file="a.sql"),  # step_b does not exist
+        ],
+    )
+    with pytest.raises(WorkflowError, match="undefined dependency: 'step_b'"):
+        compiler.compile(workflow_config, Path("/workflows"))
+
+
+@patch("omopcloudetl_core.compilation.compiler.DiscoveryManager")
+@patch("omopcloudetl_core.compilation.compiler.SpecificationManager")
+def test_compile_dml_file_not_found(MockSpecManager, MockDiscoveryManager, mock_project_config, mock_connection):
+    """Test DMLValidationError when a DML file is not found."""
+    MockDiscoveryManager.return_value.get_generators.return_value = (MagicMock(), MagicMock())
+    compiler = WorkflowCompiler(mock_project_config, mock_connection)
+    workflow_config = WorkflowConfig(
+        workflow_name="test_wf",
+        steps=[DMLWorkflowStep(name="dml_step", dml_file="non_existent.yml")],
+    )
+    m_open = mock_open()
+    m_open.side_effect = IOError("File not found")
+    with patch("builtins.open", m_open), pytest.raises(DMLValidationError, match="Failed to load, render, or validate DML file"):
+        compiler.compile(workflow_config, Path("/workflows"))
+
+
+@patch("omopcloudetl_core.compilation.compiler.DiscoveryManager")
+@patch("omopcloudetl_core.compilation.compiler.SpecificationManager")
+def test_compile_sql_file_is_a_directory(MockSpecManager, MockDiscoveryManager, mock_project_config, mock_connection):
+    """Test CompilationError when the SQL file path is a directory."""
+    MockDiscoveryManager.return_value.get_generators.return_value = (MagicMock(), MagicMock())
+    compiler = WorkflowCompiler(mock_project_config, mock_connection)
+    workflow_config = WorkflowConfig(
+        workflow_name="test_wf",
+        steps=[SQLWorkflowStep(name="sql_step", sql_file="a_directory")],
+    )
+    m_open = mock_open()
+    m_open.side_effect = IsADirectoryError("Is a directory")
+    with patch("builtins.open", m_open), pytest.raises(CompilationError, match="Failed to read SQL file"):
+        compiler.compile(workflow_config, Path("/workflows"))
+
+
+@patch("omopcloudetl_core.compilation.compiler.DiscoveryManager")
+@patch("omopcloudetl_core.compilation.compiler.SpecificationManager")
+def test_compile_dml_file_is_a_directory(MockSpecManager, MockDiscoveryManager, mock_project_config, mock_connection):
+    """Test DMLValidationError when the DML file path is a directory."""
+    MockDiscoveryManager.return_value.get_generators.return_value = (MagicMock(), MagicMock())
+    compiler = WorkflowCompiler(mock_project_config, mock_connection)
+    workflow_config = WorkflowConfig(
+        workflow_name="test_wf",
+        steps=[DMLWorkflowStep(name="dml_step", dml_file="a_directory")],
+    )
+    m_open = mock_open()
+    m_open.side_effect = IsADirectoryError("Is a directory")
+    with patch("builtins.open", m_open), pytest.raises(DMLValidationError, match="Failed to load, render, or validate DML file"):
+        compiler.compile(workflow_config, Path("/workflows"))
+
+
+@patch("omopcloudetl_core.compilation.compiler.DiscoveryManager")
+@patch("omopcloudetl_core.compilation.compiler.SpecificationManager")
+def test_compile_sql_step_success(MockSpecManager, MockDiscoveryManager, mock_project_config, mock_connection):
+    """Test the successful compilation of a SQL workflow step."""
+    MockDiscoveryManager.return_value.get_generators.return_value = (MagicMock(), MagicMock())
+    compiler = WorkflowCompiler(mock_project_config, mock_connection)
+
+    sql_content = "SELECT * FROM {{ schemas.source }}.my_table; INSERT INTO {{ schemas.target }}.another_table VALUES (1);"
+    workflow_config = WorkflowConfig(
+        workflow_name="test_wf",
+        steps=[SQLWorkflowStep(name="sql_step", sql_file="my_query.sql")],
+    )
+
+    m_open = mock_open(read_data=sql_content)
+    with patch("builtins.open", m_open):
+        plan = compiler.compile(workflow_config, Path("/workflows"))
+
+    assert len(plan.steps) == 1
+    compiled_step = plan.steps[0]
+    assert isinstance(compiled_step, CompiledSQLStep)
+    assert len(compiled_step.sql_statements) == 2
+    assert "SELECT * FROM raw_data.my_table" in compiled_step.sql_statements[0]
+    assert "INSERT INTO cdm_v5.another_table" in compiled_step.sql_statements[1]
+    m_open.assert_called_once_with(Path("/workflows/my_query.sql"), "r")

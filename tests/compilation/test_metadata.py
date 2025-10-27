@@ -8,12 +8,13 @@
 #
 # Source Code: https://github.com/CoReason-AI/omopcloudetl_core
 
+from datetime import datetime
 from unittest.mock import MagicMock
 from uuid import uuid4
+
 import pytest
 from omopcloudetl_core.compilation.metadata import MetadataManager
 from omopcloudetl_core.models.metrics import ExecutionMetrics, LoadMetrics
-from datetime import datetime
 
 
 @pytest.fixture
@@ -34,12 +35,14 @@ def test_initialize_store(metadata_manager, mock_connection):
     metadata_manager.initialize_store(execution_id)
 
     assert mock_connection.execute_sql.call_count == 1
-    args, kwargs = mock_connection.execute_sql.call_args
+    # call_args is a tuple of (args, kwargs)
+    args, _ = mock_connection.execute_sql.call_args
     sql_call = args[0]
 
     assert f"CREATE TABLE IF NOT EXISTS {MetadataManager.METADATA_TABLE}" in sql_call
     assert "log_id BIGINT" in sql_call
     assert "execution_id VARCHAR(36)" in sql_call
+    assert str(execution_id) in sql_call
 
 
 def test_log_step_start(metadata_manager, mock_connection):
@@ -68,6 +71,8 @@ def test_log_step_end_success_execution_metrics(metadata_manager, mock_connectio
     metrics = ExecutionMetrics(
         rows_affected=100,
         rows_inserted=80,
+        rows_updated=10,
+        rows_deleted=10,
         query_id="query-123",
     )
 
@@ -80,15 +85,22 @@ def test_log_step_end_success_execution_metrics(metadata_manager, mock_connectio
 
     assert f"UPDATE {MetadataManager.METADATA_TABLE}" in sql_call
     assert "status = ?" in sql_call
+    assert "end_time = ?" in sql_call
+    assert "duration_seconds = EXTRACT(EPOCH FROM (end_time - start_time))" in sql_call
     assert "rows_affected = ?" in sql_call
     assert "rows_inserted = ?" in sql_call
+    assert "rows_updated = ?" in sql_call
+    assert "rows_deleted = ?" in sql_call
     assert "query_id = ?" in sql_call
     assert params[0] == "COMPLETED"
-    assert isinstance(params[1], datetime)  # end_time
-    assert params[2] is None  # duration_seconds
-    assert params[3] == 100  # rows_affected
-    assert params[4] == 80  # rows_inserted
-    assert params[5] == "query-123"
+    assert isinstance(params[1], datetime)
+    assert params[2] == 100
+    assert params[3] == 80
+    assert params[4] == 10
+    assert params[5] == 10
+    assert params[6] == "query-123"
+    assert params[7] == str(execution_id)
+    assert params[8] == step_name
 
 
 def test_log_step_end_success_load_metrics(metadata_manager, mock_connection):
@@ -111,16 +123,18 @@ def test_log_step_end_success_load_metrics(metadata_manager, mock_connection):
     params = kwargs["params"]
 
     assert f"UPDATE {MetadataManager.METADATA_TABLE}" in sql_call
-    assert "status = ?" in sql_call
     assert "rows_processed = ?" in sql_call
-    assert "rows_inserted = ?" in sql_call
-    assert "query_id = ?" in sql_call
+    assert "rows_rejected = ?" in sql_call
+    assert "error_details_uri = ?" in sql_call
     assert params[0] == "COMPLETED"
-    assert isinstance(params[1], datetime)  # end_time
-    assert params[2] is None  # duration_seconds
-    assert params[3] == 1000  # rows_processed
-    assert params[4] == 990  # rows_inserted
-    assert params[5] == "query-456"
+    assert isinstance(params[1], datetime)
+    assert params[2] == 1000
+    assert params[3] == 990
+    assert params[4] == 10
+    assert params[5] == "s3://errors/details.csv"
+    assert params[6] == "query-456"
+    assert params[7] == str(execution_id)
+    assert params[8] == step_name
 
 
 def test_log_step_end_failure(metadata_manager, mock_connection):
@@ -140,6 +154,7 @@ def test_log_step_end_failure(metadata_manager, mock_connection):
     assert "status = ?" in sql_call
     assert "error_message = ?" in sql_call
     assert params[0] == "FAILED"
-    assert isinstance(params[1], datetime)  # end_time
-    assert params[2] is None  # duration_seconds
-    assert params[3] == "Something went wrong"
+    assert isinstance(params[1], datetime)
+    assert params[2] == str(error)
+    assert params[3] == str(execution_id)
+    assert params[4] == step_name
