@@ -8,32 +8,30 @@
 #
 # Source Code: https://github.com/CoReason-AI/omopcloudetl_core
 
-import os
 from abc import ABC, abstractmethod
+import os
 
 
 class BaseSecretsProvider(ABC):
-    """Abstract base class for all secret providers."""
+    """Abstract base class for a secrets provider."""
 
     @abstractmethod
-    def get_secret(self, secret_identifier: str) -> str:  # pragma: no cover
+    def get_secret(self, secret_identifier: str) -> str:
         """
-        Retrieve a secret value based on its identifier.
+        Retrieves a secret value for a given identifier.
 
         Args:
             secret_identifier: The identifier for the secret to retrieve.
 
         Returns:
             The secret value as a string.
-
-        Raises:
-            SecretAccessError: If the secret cannot be found or accessed.
         """
         pass
 
 
+# Default implementation
 class EnvironmentSecretsProvider(BaseSecretsProvider):
-    """A secret provider that retrieves secrets from environment variables."""
+    """A secrets provider that retrieves secrets from environment variables."""
 
     def get_secret(self, secret_identifier: str) -> str:
         """
@@ -50,8 +48,8 @@ class EnvironmentSecretsProvider(BaseSecretsProvider):
         """
         value = os.getenv(secret_identifier)
         if value is None:
-            # Import locally to avoid circular dependency issues at startup
-            from omopcloudetl_core.exceptions import SecretAccessError
+            # Import locally to avoid circular dependency
+            from ..exceptions import SecretAccessError
 
             raise SecretAccessError(f"Secret not found in environment: {secret_identifier}")
         return value

@@ -13,8 +13,6 @@ from typing import Any, Dict, Optional
 from pydantic import BaseModel, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from omopcloudetl_core.exceptions import ConfigurationError
-
 
 class SecretsConfig(BaseModel):
     """Configuration for the secrets provider."""
@@ -31,7 +29,7 @@ class OrchestratorConfig(BaseModel):
 
 
 class ConnectionConfig(BaseSettings):
-    """Configuration for the database connection, supporting environment variable overrides."""
+    """Configuration for the database connection."""
 
     provider_type: str
     host: Optional[str] = None
@@ -40,11 +38,7 @@ class ConnectionConfig(BaseSettings):
     password_secret_id: Optional[str] = None
     extra_settings: Dict[str, Any] = {}
 
-    model_config = SettingsConfigDict(
-        env_prefix="OMOPCLOUDETL_CONN_",
-        env_nested_delimiter="__",
-        case_sensitive=False,
-    )
+    model_config = SettingsConfigDict(env_prefix="OMOPCLOUDETL_CONN_", env_nested_delimiter="__", case_sensitive=False)
 
 
 class ProjectConfig(BaseModel):
@@ -56,13 +50,11 @@ class ProjectConfig(BaseModel):
     secrets: Optional[SecretsConfig] = None
 
     @model_validator(mode="after")
-    def check_secrets_provider_for_password_secret(self) -> "ProjectConfig":
-        """
-        Validate that if a password_secret_id is provided, a secrets provider
-        is also configured.
-        """
-        if self.connection.password_secret_id is not None and self.connection.password is None and self.secrets is None:
-            raise ConfigurationError(
-                "A 'secrets' provider must be configured when 'connection.password_secret_id' is used."
-            )
+    def check_secrets_provider_configured(self) -> "ProjectConfig":
+        """Ensure that if a secret is used for the password, a secrets provider is configured."""
+        if self.connection.password_secret_id and not self.connection.password:
+            if not self.secrets:
+                raise ValueError(
+                    "A 'secrets' provider must be configured when 'connection.password_secret_id' is used."
+                )
         return self
