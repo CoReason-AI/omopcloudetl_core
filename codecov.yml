@@ -1,4 +1,26 @@
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 1%
+      develop:
+        target: auto
+        flags:
+          - develop
+      main:
+        target: auto
+        flags:
+          - main
 comment:
-  layout: "reach,diff,flags,files,footer"
-  behavior: default
-  require_changes: false
+  layout: "reach, diff, flags, files"
+  branches:
+    - "main"
+    - "develop"
+flags:
+  develop:
+    paths:
+      - src/
+  main:
+    paths:
+      - src/
