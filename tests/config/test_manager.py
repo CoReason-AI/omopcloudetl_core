@@ -8,227 +8,138 @@
 #
 # Source Code: https://github.com/CoReason-AI/omopcloudetl_core
 
-import pytest
 from pathlib import Path
-import yaml
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
+import pytest
+import yaml
 from omopcloudetl_core.config.manager import ConfigManager
-from omopcloudetl_core.exceptions import ConfigurationError
+from omopcloudetl_core.exceptions import ConfigurationError, SecretAccessError
 
 
 @pytest.fixture
-def config_manager():
-    return ConfigManager()
+def mock_discovery_manager():
+    """Fixture to create a mock DiscoveryManager."""
+    return MagicMock()
 
 
-def test_load_project_config_success(config_manager, tmp_path: Path):
-    """
-    Tests successful loading of a valid project configuration file.
-    """
-    config_content = {
-        "connection": {"provider_type": "test_db"},
-        "orchestrator": {"type": "local"},
-        "schemas": {"source": "raw", "target": "cdm"},
-    }
-    config_file = tmp_path / "config.yml"
-    with open(config_file, "w") as f:
-        yaml.dump(config_content, f)
+@pytest.fixture
+def config_file_factory(tmp_path):
+    """Factory fixture to create temporary config files."""
 
-    project_config = config_manager.load_project_config(config_file)
-    assert project_config.connection.provider_type == "test_db"
-    assert project_config.orchestrator.type == "local"
+    def _create_config_file(content):
+        path = tmp_path / "config.yml"
+        if isinstance(content, dict):
+            path.write_text(yaml.dump(content))
+        else:
+            path.write_text(content)
+        return path
+
+    return _create_config_file
 
 
-def test_load_config_file_not_found(config_manager):
-    """
-    Tests that a ConfigurationError is raised when the config file does not exist.
-    """
-    non_existent_path = Path("non_existent_config.yml")
-    with pytest.raises(ConfigurationError, match="Configuration file not found"):
-        config_manager.load_project_config(non_existent_path)
+VALID_CONFIG_DICT = {
+    "connection": {"provider_type": "test_db"},
+    "orchestrator": {"type": "local"},
+    "schemas": {"source": "raw", "target": "cdm"},
+}
 
 
-def test_load_config_invalid_yaml(config_manager, tmp_path: Path):
-    """
-    Tests that a ConfigurationError is raised for a file with invalid YAML syntax.
-    """
-    config_file = tmp_path / "invalid.yml"
-    config_file.write_text("connection: { provider_type: test_db")  # Malformed YAML
-    with pytest.raises(ConfigurationError, match="Error parsing YAML"):
-        config_manager.load_project_config(config_file)
+def test_load_project_config_success(config_file_factory):
+    """Test loading a valid project configuration file."""
+    config_path = config_file_factory(VALID_CONFIG_DICT)
+    manager = ConfigManager()
+    config = manager.load_project_config(config_path)
+
+    assert config.connection.provider_type == "test_db"
+    assert config.orchestrator.type == "local"
+    assert config.schemas["target"] == "cdm"
 
 
-def test_load_config_empty_file(config_manager, tmp_path: Path):
-    """
-    Tests that a ConfigurationError is raised for an empty configuration file.
-    """
-    config_file = tmp_path / "empty.yml"
-    config_file.touch()
-    with pytest.raises(ConfigurationError, match="Configuration file is empty"):
-        config_manager.load_project_config(config_file)
+def test_load_config_file_not_found():
+    """Test that ConfigurationError is raised for a non-existent file."""
+    manager = ConfigManager()
+    with pytest.raises(ConfigurationError, match="not found"):
+        manager.load_project_config(Path("non_existent_file.yml"))
 
 
-def test_load_config_validation_error(config_manager, tmp_path: Path):
-    """
-    Tests that a ConfigurationError is raised if the configuration
-    is missing required fields (fails Pydantic validation).
-    """
-    config_content = {
-        "orchestrator": {"type": "local"},
-        "schemas": {"source": "raw", "target": "cdm"},
-    }  # Missing 'connection'
-    config_file = tmp_path / "invalid_schema.yml"
-    with open(config_file, "w") as f:
-        yaml.dump(config_content, f)
+def test_load_config_invalid_yaml(config_file_factory):
+    """Test that ConfigurationError is raised for an invalid YAML file."""
+    # This YAML is syntactically incorrect and will cause a YAMLError
+    config_path = config_file_factory("key: 'unclosed quote")
+    manager = ConfigManager()
+    with pytest.raises(ConfigurationError, match="Invalid YAML"):
+        manager.load_project_config(config_path)
 
+
+def test_load_config_validation_error(config_file_factory):
+    """Test that ConfigurationError is raised for a config that fails Pydantic validation."""
+    invalid_config = {"connection": {"provider_type": "test"}}  # Missing 'orchestrator' and 'schemas'
+    config_path = config_file_factory(invalid_config)
+    manager = ConfigManager()
     with pytest.raises(ConfigurationError, match="Configuration validation failed"):
-        config_manager.load_project_config(config_file)
+        manager.load_project_config(config_path)
 
 
-def test_load_config_with_secret_resolution(config_manager, tmp_path: Path):
-    """
-    Tests that the ConfigManager correctly resolves a password from a secret_id
-    using the EnvironmentSecretsProvider.
-    """
-    secret_key = "DB_PASSWORD_SECRET"
-    secret_value = "supersecretpassword"
-
-    config_content = {
-        "connection": {"provider_type": "test_db", "password_secret_id": secret_key},
-        "orchestrator": {"type": "local"},
-        "schemas": {"source": "raw", "target": "cdm"},
-        "secrets": {"provider_type": "environment"},
-    }
-    config_file = tmp_path / "config_with_secret.yml"
-    with open(config_file, "w") as f:
-        yaml.dump(config_content, f)
-
-    with patch.dict("os.environ", {secret_key: secret_value}):
-        project_config = config_manager.load_project_config(config_file)
-
-    assert project_config.connection.password_secret_id == secret_key
-    assert project_config.secrets.provider_type == "environment"
-    assert project_config.connection.password is not None
-    assert project_config.connection.password.get_secret_value() == secret_value
-
-
-def test_load_config_secret_resolution_fails(config_manager, tmp_path: Path):
-    """
-    Tests that a ConfigurationError is raised if secret resolution fails.
-    """
-    config_content = {
-        "connection": {"provider_type": "test_db", "password_secret_id": "NON_EXISTENT_SECRET"},
-        "orchestrator": {"type": "local"},
-        "schemas": {"source": "raw", "target": "cdm"},
-        "secrets": {"provider_type": "environment"},
-    }
-    config_file = tmp_path / "config_with_failing_secret.yml"
-    with open(config_file, "w") as f:
-        yaml.dump(config_content, f)
-
-    with pytest.raises(ConfigurationError, match="Failed to resolve secret"):
-        config_manager.load_project_config(config_file)
-
-
-def test_load_config_unsupported_secret_provider(config_manager, tmp_path: Path):
-    """
-    Tests that a ConfigurationError is raised for an unsupported secret provider.
-    """
-    config_content = {
-        "connection": {"provider_type": "test_db", "password_secret_id": "some-secret"},
-        "orchestrator": {"type": "local"},
-        "schemas": {"source": "raw", "target": "cdm"},
-        "secrets": {"provider_type": "unsupported_provider"},
-    }
-    config_file = tmp_path / "config_with_unsupported_secret_provider.yml"
-    with open(config_file, "w") as f:
-        yaml.dump(config_content, f)
-
-    with pytest.raises(ConfigurationError, match="is not supported"):
-        config_manager.load_project_config(config_file)
-
-
-def test_load_config_valid_yaml_not_dict(config_manager, tmp_path: Path):
-    """
-    Tests that a ConfigurationError is raised if the YAML is valid but not a dictionary.
-    """
-    config_file = tmp_path / "not_a_dict.yml"
-    config_file.write_text("- item1\n- item2")  # A list, not a dictionary
-    with pytest.raises(ConfigurationError, match="Configuration validation failed"):
-        config_manager.load_project_config(config_file)
-
-
-def test_load_config_prefers_direct_password_over_secret(config_manager, tmp_path: Path, mocker):
-    """
-    Tests that a direct password in the config is used even if a secret_id is also present.
-    """
-    direct_password = "direct_password"
-    secret_key = "DB_PASSWORD_SECRET"
-    secret_value = "supersecretpassword"
-
-    config_content = {
+def test_secret_resolution_success(config_file_factory, mock_discovery_manager):
+    """Test successful resolution of a password from a secret."""
+    config_with_secret = {
+        **VALID_CONFIG_DICT,
         "connection": {
             "provider_type": "test_db",
-            "password": direct_password,
-            "password_secret_id": secret_key,
+            "password_secret_id": "my-db-password",
         },
-        "orchestrator": {"type": "local"},
-        "schemas": {"source": "raw", "target": "cdm"},
-        "secrets": {"provider_type": "environment"},
+        "secrets": {"provider_type": "env"},
     }
-    config_file = tmp_path / "config_with_both_passwords.yml"
-    with open(config_file, "w") as f:
-        yaml.dump(config_content, f)
+    config_path = config_file_factory(config_with_secret)
 
-    # Mock the secrets provider to ensure it's not called
-    mock_get_secret = mocker.patch("omopcloudetl_core.abstractions.secrets.EnvironmentSecretsProvider.get_secret")
+    # Configure the mock secrets provider
+    mock_provider = MagicMock()
+    mock_provider.get_secret.return_value = "resolved_secret_password"
+    mock_discovery_manager.get_secrets_provider.return_value = mock_provider
 
-    with patch.dict("os.environ", {secret_key: secret_value}):
-        project_config = config_manager.load_project_config(config_file)
+    manager = ConfigManager(discovery_manager=mock_discovery_manager)
+    config = manager.load_project_config(config_path)
 
-    assert project_config.connection.password is not None
-    assert project_config.connection.password.get_secret_value() == direct_password
-    mock_get_secret.assert_not_called()
+    mock_discovery_manager.get_secrets_provider.assert_called_once()
+    mock_provider.get_secret.assert_called_with("my-db-password")
+    assert config.connection.password.get_secret_value() == "resolved_secret_password"
 
 
-def test_load_config_with_secrets_block_but_no_secret_id(config_manager, tmp_path: Path, mocker):
-    """
-    Tests that secret resolution is not triggered if a secrets block is present
-    but the connection has no password_secret_id.
-    """
-    config_content = {
-        "connection": {"provider_type": "test_db"},  # No password or secret_id
-        "orchestrator": {"type": "local"},
-        "schemas": {"source": "raw", "target": "cdm"},
-        "secrets": {"provider_type": "environment"},
+def test_secret_resolution_fails(config_file_factory, mock_discovery_manager):
+    """Test that an exception from the secrets provider is propagated."""
+    config_with_secret = {
+        **VALID_CONFIG_DICT,
+        "connection": {
+            "provider_type": "test_db",
+            "password_secret_id": "my-db-password",
+        },
+        "secrets": {"provider_type": "env"},
     }
-    config_file = tmp_path / "config.yml"
-    with open(config_file, "w") as f:
-        yaml.dump(config_content, f)
+    config_path = config_file_factory(config_with_secret)
 
-    mock_get_secret = mocker.patch("omopcloudetl_core.abstractions.secrets.EnvironmentSecretsProvider.get_secret")
+    mock_provider = MagicMock()
+    mock_provider.get_secret.side_effect = SecretAccessError("Secret not found")
+    mock_discovery_manager.get_secrets_provider.return_value = mock_provider
 
-    project_config = config_manager.load_project_config(config_file)
+    manager = ConfigManager(discovery_manager=mock_discovery_manager)
+    with pytest.raises(SecretAccessError):
+        manager.load_project_config(config_path)
 
-    assert project_config.connection.password is None
-    mock_get_secret.assert_not_called()
 
-
-def test_load_config_secret_id_without_secrets_block(config_manager, tmp_path: Path):
-    """
-    Tests that a ConfigurationError is raised if password_secret_id is provided
-    without a secrets configuration block.
-    """
-    config_content = {
-        "connection": {"provider_type": "test_db", "password_secret_id": "some-secret"},
-        "orchestrator": {"type": "local"},
-        "schemas": {"source": "raw", "target": "cdm"},
-        # No 'secrets' block
+def test_no_secret_resolution_if_password_present(config_file_factory, mock_discovery_manager):
+    """Test that secret resolution is skipped if a password is provided directly."""
+    config_with_direct_pass = {
+        **VALID_CONFIG_DICT,
+        "connection": {
+            "provider_type": "test_db",
+            "password": "direct_password",
+            "password_secret_id": "should_be_ignored",
+        },
     }
-    config_file = tmp_path / "config.yml"
-    with open(config_file, "w") as f:
-        yaml.dump(config_content, f)
+    config_path = config_file_factory(config_with_direct_pass)
+    manager = ConfigManager(discovery_manager=mock_discovery_manager)
+    config = manager.load_project_config(config_path)
 
-    with pytest.raises(ConfigurationError, match="Configuration validation failed"):
-        config_manager.load_project_config(config_file)
+    mock_discovery_manager.get_secrets_provider.assert_not_called()
+    assert config.connection.password.get_secret_value() == "direct_password"

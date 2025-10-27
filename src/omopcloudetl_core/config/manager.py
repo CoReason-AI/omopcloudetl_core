@@ -9,81 +9,70 @@
 # Source Code: https://github.com/CoReason-AI/omopcloudetl_core
 
 from pathlib import Path
+
 import yaml
 from pydantic import ValidationError
 
 from omopcloudetl_core.config.models import ProjectConfig
+from omopcloudetl_core.discovery import DiscoveryManager
 from omopcloudetl_core.exceptions import ConfigurationError
 
 
 class ConfigManager:
-    """Manages the loading and validation of project configuration."""
+    """Manages loading and validation of the project configuration."""
+
+    def __init__(self, discovery_manager: DiscoveryManager = None):
+        self._discovery = discovery_manager or DiscoveryManager()
 
     def load_project_config(self, config_path: Path) -> ProjectConfig:
         """
-        Loads a project configuration file, validates its structure,
-        and prepares it for secret resolution.
+        Loads the project configuration from a YAML file, validates it,
+        and resolves any secrets.
 
         Args:
-            config_path: The path to the YAML configuration file.
+            config_path: The path to the project configuration YAML file.
 
         Returns:
             A validated ProjectConfig object.
 
         Raises:
-            ConfigurationError: If the file is not found, cannot be parsed,
+            ConfigurationError: If the file cannot be read, is not valid YAML,
                                 or fails Pydantic validation.
         """
-        if not config_path.is_file():
-            raise ConfigurationError(f"Configuration file not found at: {config_path}")
-
         try:
             with open(config_path, "r") as f:
                 config_data = yaml.safe_load(f)
+        except FileNotFoundError:
+            raise ConfigurationError(f"Configuration file not found at: {config_path}")
         except yaml.YAMLError as e:
-            raise ConfigurationError(f"Error parsing YAML configuration file: {e}") from e
+            raise ConfigurationError(f"Invalid YAML in configuration file: {config_path}") from e
 
-        if not config_data:
-            raise ConfigurationError("Configuration file is empty.")
+        if not isinstance(config_data, dict):
+            raise ConfigurationError("The root of the configuration file must be a dictionary.")
 
         try:
-            project_config = ProjectConfig(**config_data)
-        except (ValidationError, ConfigurationError, TypeError) as e:
+            config = ProjectConfig.model_validate(config_data)
+        except ValidationError as e:
             raise ConfigurationError(f"Configuration validation failed: {e}") from e
 
-        # Resolve secrets. In a future phase, this will use the DiscoveryManager
-        # to dynamically load the correct secrets provider. For now, we default
-        # to the EnvironmentSecretsProvider as per the specification.
+        # Secret Resolution Logic
         if (
-            project_config.secrets
-            and project_config.connection.password_secret_id
-            and not project_config.connection.password
+            config.connection.password_secret_id
+            and config.connection.password is None
         ):
-            # Local import to avoid circular dependencies if DiscoveryManager is used here later
-            from omopcloudetl_core.abstractions.secrets import EnvironmentSecretsProvider
+            secrets_provider = self._discovery.get_secrets_provider(config.secrets)
+            resolved_password = secrets_provider.get_secret(
+                config.connection.password_secret_id
+            )
+            # Pydantic models are immutable by default, so we create a copy with the updated value.
+            # We must handle the nested structure.
+            connection_dict = config.connection.model_dump()
+            connection_dict["password"] = resolved_password
 
-            # NOTE: This part will be replaced by the DiscoveryManager in Phase 6
-            if project_config.secrets.provider_type == "environment":
-                provider = EnvironmentSecretsProvider()
-            else:
-                raise ConfigurationError(f"Secrets provider '{project_config.secrets.provider_type}' is not supported.")
+            config_dict = config.model_dump()
+            config_dict["connection"] = connection_dict
 
-            try:
-                resolved_password = provider.get_secret(project_config.connection.password_secret_id)
-                # Pydantic models are immutable by default, so we need to create a new object
-                # for the update.
-                connection_data = project_config.connection.model_dump()
-                connection_data["password"] = resolved_password
+            # Re-validate the model with the resolved password
+            config = ProjectConfig.model_validate(config_dict)
 
-                # Re-create the connection config and update the project config
-                new_connection_config = type(project_config.connection)(**connection_data)
-                project_config.connection = new_connection_config
-
-            except Exception as e:
-                # Catching a broad exception to handle any secret provider error
-                raise ConfigurationError(
-                    f"Failed to resolve secret '{project_config.connection.password_secret_id}' "
-                    f"using provider '{project_config.secrets.provider_type}': {e}"
-                ) from e
-
-        return project_config
+        return config

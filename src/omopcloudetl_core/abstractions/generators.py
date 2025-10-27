@@ -9,30 +9,50 @@
 # Source Code: https://github.com/CoReason-AI/omopcloudetl_core
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, TYPE_CHECKING
+from typing import Any, Dict, List
 
-if TYPE_CHECKING:
-    from omopcloudetl_core.models.dml import DMLDefinition
-    from omopcloudetl_core.specifications.models import CDMSpecification
+from omopcloudetl_core.models.dml import DMLDefinition
+from omopcloudetl_core.specifications.models import CDMSpecification
 
 
 class BaseDDLGenerator(ABC):
-    """Abstract base class for DDL generators."""
+    """Abstract base class for dialect-specific DDL generators."""
 
     @abstractmethod
     def generate_ddl(
-        self, specification: "CDMSpecification", schema_name: str, options: dict
-    ) -> List[str]:  # pragma: no cover
-        """Generates DDL statements for a given CDM specification."""
+        self, specification: CDMSpecification, schema_name: str, options: Dict[str, Any]
+    ) -> List[str]:
+        """
+        Generates a list of DDL statements for a given CDM specification.
+
+        Args:
+            specification: The parsed CDMSpecification object.
+            schema_name: The target schema for the DDL.
+            options: Dialect-specific options for DDL generation.
+
+        Returns:
+            A list of SQL DDL statements.
+        """
+        # pragma: no cover
         pass
 
 
 class BaseSQLGenerator(ABC):
-    """Abstract base class for SQL generators."""
+    """Abstract base class for dialect-specific SQL generators from DML definitions."""
 
     @abstractmethod
     def generate_transform_sql(
-        self, dml_definition: "DMLDefinition", context: Dict[str, Any]
-    ) -> str:  # pragma: no cover
-        """Generates idempotent transformation SQL from a DML definition."""
+        self, dml_definition: DMLDefinition, context: Dict[str, Any]
+    ) -> str:
+        """
+        Generates an idempotent SQL transformation statement from a DML definition.
+
+        Args:
+            dml_definition: The parsed DMLDefinition object.
+            context: The execution context, containing resolved schema names, etc.
+
+        Returns:
+            A single, idempotent SQL statement (e.g., MERGE or a transactional block).
+        """
+        # pragma: no cover
         pass

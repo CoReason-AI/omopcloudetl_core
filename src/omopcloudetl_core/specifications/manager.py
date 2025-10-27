@@ -9,13 +9,12 @@
 # Source Code: https://github.com/CoReason-AI/omopcloudetl_core
 
 import csv
-import io
 from pathlib import Path
-from typing import Optional
+from typing import Dict, Optional
 
-import diskcache as dc
+import diskcache
 import requests
-from tenacity import retry, stop_after_attempt, wait_exponential, RetryError
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from omopcloudetl_core.exceptions import SpecificationError
 from omopcloudetl_core.specifications.models import (
@@ -24,94 +23,94 @@ from omopcloudetl_core.specifications.models import (
     CDMTableSpec,
 )
 
-# Constants
-OHDSI_GITHUB_REPO_URL = "https://raw.githubusercontent.com/OHDSI/CommonDataModel/{version}/"
+# Constants for OHDSI GitHub repository
+OHDSI_REPO_URL = "https://raw.githubusercontent.com/OHDSI/CommonDataModel/master/inst/csv"
 
 
 class SpecificationManager:
-    """Manages the fetching, caching, and parsing of OMOP CDM specifications."""
+    """Manages the fetching, parsing, and caching of OMOP CDM specifications."""
 
-    def __init__(self, cache_dir: Path = Path("./.omopcloudetl_cache")):
-        """
-        Initializes the SpecificationManager.
-        Args:
-            cache_dir: The directory to use for caching specifications.
-        """
-        self.cache = dc.Cache(str(cache_dir.resolve()))
+    def __init__(self, cache_dir: Path = None):
+        if cache_dir is None:
+            cache_dir = Path.home() / ".omopcloudetl_core" / "cache"
+        self.cache = diskcache.Cache(str(cache_dir))
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
-    def _fetch_url(self, url: str) -> str:
-        """Fetches content from a URL with retries."""
+    def _fetch_url_content(self, url: str) -> str:
         try:
-            response = requests.get(url, timeout=20)
+            response = requests.get(url, timeout=30)
             response.raise_for_status()
             return response.text
-        except requests.exceptions.RequestException as e:
-            raise SpecificationError(f"Failed to fetch data from {url}: {e}") from e
+        except requests.RequestException as e:
+            raise SpecificationError(f"Failed to fetch specification data from {url}") from e
 
-    def _parse_specification_from_csv(self, version: str, csv_content: str) -> CDMSpecification:
-        """Parses the CDM specification CSV into the Pydantic model."""
-        tables = {}
-        reader = csv.DictReader(io.StringIO(csv_content))
-
+    def _parse_cdm_csv(self, csv_content: str) -> Dict[str, CDMTableSpec]:
+        """Parses the main CDM specification CSV into a dictionary of table specs."""
+        tables: Dict[str, CDMTableSpec] = {}
+        reader = csv.DictReader(csv_content.splitlines())
         for row in reader:
             table_name = row["cdmTableName"].lower()
-            field_name = row["cdmFieldName"].lower()
-
             if table_name not in tables:
-                tables[table_name] = CDMTableSpec(name=table_name, fields=[], primary_key=[])  # Placeholder for PK
-
-            tables[table_name].fields.append(
-                CDMFieldSpec(
-                    name=field_name,
-                    type=row["cdmDatatype"],
-                    required=row["isRequired"].upper() == "YES",
-                    description=row.get("cdmSource"),  # Best available field for description
+                tables[table_name] = CDMTableSpec(
+                    name=table_name,
+                    fields=[],
+                    primary_key=[],  # Will be populated later if available
                 )
+
+            # Note: The CSV structure has some optional fields.
+            # We handle them gracefully.
+            field = CDMFieldSpec(
+                name=row["cdmFieldName"].lower(),
+                type=row.get("cdmDatatype", "VARCHAR(MAX)"), # Default type if missing
+                required=row.get("isRequired", "No").lower() == "yes",
+                description=row.get("cdmFieldName"),
             )
-            if row["isPrimaryKey"].upper() == "YES":
-                tables[table_name].primary_key.append(field_name)
+            tables[table_name].fields.append(field)
 
-        return CDMSpecification(version=version, tables=tables)
+            if row.get("isPrimaryKey", "No").lower() == "yes":
+                tables[table_name].primary_key.append(row["cdmFieldName"].lower())
 
-    def fetch_specification(self, version: str, local_path: Optional[Path] = None) -> CDMSpecification:
+        return tables
+
+    def fetch_specification(self, version: str, local_path: Optional[str] = None) -> CDMSpecification:
         """
-        Fetches a CDM specification, using a cache to avoid repeated downloads.
+        Fetches the OMOP CDM specification for a given version.
 
-        The order of retrieval is:
-        1. Cache
-        2. Local file path (if provided)
-        3. OHDSI GitHub repository (remote)
+        It can load from a local file path or fetch from the official OHDSI
+        GitHub repository. Results are cached to avoid redundant processing.
 
         Args:
-            version: The version of the CDM specification (e.g., "v5.4").
-            local_path: An optional path to a local CSV file for the specification.
+            version: The CDM version to fetch (e.g., "5.4"). Used as cache key.
+            local_path: An optional path to a local CSV specification file.
 
         Returns:
             A CDMSpecification object.
         """
-        cache_key = f"cdm_spec_{version}"
+        cache_key = f"cdm_spec_{version}_{local_path or 'remote'}"
         cached_spec = self.cache.get(cache_key)
         if cached_spec:
             return cached_spec
 
+        csv_content: str
         if local_path:
-            if not local_path.is_file():
-                raise SpecificationError(f"Local specification file not found: {local_path}")
-            with open(local_path, "r", encoding="utf-8") as f:
-                csv_content = f.read()
-        else:
-            # The structural definition is typically in a file named after the version
-            # e.g., OMOP_CDM_v5.4.csv
-            spec_url = f"{OHDSI_GITHUB_REPO_URL.format(version=version)}OMOP_CDM_{version}.csv"
             try:
-                csv_content = self._fetch_url(spec_url)
+                with open(local_path, "r", encoding="utf-8") as f:
+                    csv_content = f.read()
+            except FileNotFoundError as e:
+                raise SpecificationError(f"Local specification file not found at: {local_path}") from e
+        else:
+            spec_url = f"{OHDSI_REPO_URL}/OMOP_CDM_v{version}_Field_Level.csv"
+            from tenacity import RetryError
+            try:
+                csv_content = self._fetch_url_content(spec_url)
             except RetryError as e:
-                raise SpecificationError(f"Failed to fetch data from {spec_url} after multiple retries") from e
+                raise SpecificationError(f"Failed to fetch remote specification for version {version}") from e
 
         try:
-            specification = self._parse_specification_from_csv(version, csv_content)
-            self.cache.set(cache_key, specification)
-            return specification
-        except (KeyError, csv.Error) as e:
-            raise SpecificationError(f"Failed to parse CDM specification for version {version}: {e}") from e
+            tables = self._parse_cdm_csv(csv_content)
+        except Exception as e:
+            raise SpecificationError(f"Failed to parse specification for version {version}") from e
+
+        spec = CDMSpecification(version=version, tables=tables)
+        self.cache.set(cache_key, spec)
+        return spec
