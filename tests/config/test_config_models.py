@@ -4,12 +4,7 @@ from unittest.mock import patch
 import pytest
 from pydantic import ValidationError
 
-from omopcloudetl_core.config.models import (
-    ConnectionConfig,
-    ProjectConfig,
-    SecretsConfig,
-    OrchestratorConfig,
-)
+from omopcloudetl_core.config.models import ConnectionConfig, ProjectConfig
 
 
 class TestConnectionConfig:
@@ -38,9 +33,7 @@ class TestConnectionConfig:
         assert config.password.get_secret_value() == "test_password"
 
     def test_extra_settings(self):
-        config = ConnectionConfig(
-            provider_type="test", extra_settings={"key": "value"}
-        )
+        config = ConnectionConfig(provider_type="test", extra_settings={"key": "value"})
         assert config.extra_settings["key"] == "value"
 
 
