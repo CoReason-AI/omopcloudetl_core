@@ -8,21 +8,22 @@
 #
 # Source Code: https://github.com/CoReason-AI/omopcloudetl_core
 
-from importlib.abc import Traversable
-from typing import List
+from pathlib import Path
+from typing import Any, Dict, List, Union
 from uuid import uuid4
-
 import networkx as nx
 import yaml
-from omopcloudetl_core.abstractions.generators import BaseDDLGenerator, BaseSQLGenerator
+from pydantic import ValidationError
+
+from omopcloudetl_core.abstractions.connections import BaseConnection
 from omopcloudetl_core.config.models import ProjectConfig
-from omopcloudetl_core.exceptions import CompilationError, WorkflowError
+from omopcloudetl_core.discovery import DiscoveryManager
+from omopcloudetl_core.exceptions import CompilationError, DMLValidationError, WorkflowError
 from omopcloudetl_core.models.dml import DMLDefinition
 from omopcloudetl_core.models.workflow import (
     BulkLoadWorkflowStep,
     CompiledBulkLoadStep,
     CompiledSQLStep,
-    CompiledStep,
     CompiledWorkflowPlan,
     DDLWorkflowStep,
     DMLWorkflowStep,
@@ -30,29 +31,40 @@ from omopcloudetl_core.models.workflow import (
     WorkflowConfig,
 )
 from omopcloudetl_core.specifications.manager import SpecificationManager
-from omopcloudetl_core.sql_tools import apply_query_tag, render_jinja_template
+from omopcloudetl_core.sql_tools import apply_query_tag, render_jinja_template, split_sql_script
 
 
 class WorkflowCompiler:
-    """Compiles a workflow configuration into an executable plan."""
+    """
+    Orchestrates the compilation of a workflow definition into an executable plan.
 
-    def __init__(
-        self,
-        project_config: ProjectConfig,
-        sql_generator: BaseSQLGenerator,
-        ddl_generator: BaseDDLGenerator,
-        spec_manager: SpecificationManager,
-    ):
+    This class is responsible for parsing the workflow configuration, validating
+    the dependency graph (DAG) of its steps, and compiling each step into a
+    structured, executable format. It does not perform any execution itself,
+    only compilation.
+    """
+
+    def __init__(self, project_config: ProjectConfig, connection: BaseConnection):
         self.project_config = project_config
-        self.sql_generator = sql_generator
-        self.ddl_generator = ddl_generator
-        self.spec_manager = spec_manager
+        self.connection = connection
+        self.discovery_manager = DiscoveryManager()
+        self.spec_manager = SpecificationManager()
+        self.sql_generator, self.ddl_generator = self.discovery_manager.get_generators(connection)
 
-    def _validate_dag(self, workflow_config: WorkflowConfig):
-        """Validates the dependency graph of the workflow."""
+    def _validate_dag(self, steps: List[Any]) -> None:
+        """
+        Validates the dependency graph of the workflow steps.
+
+        Args:
+            steps: A list of workflow step objects.
+
+        Raises:
+            WorkflowError: If the DAG is invalid (e.g., contains cycles).
+        """
         graph = nx.DiGraph()
-        step_names = {step.name for step in workflow_config.steps}
-        for step in workflow_config.steps:
+        step_names = {step.name for step in steps}
+
+        for step in steps:
             graph.add_node(step.name)
             for dep in step.depends_on:
                 if dep not in step_names:
@@ -60,95 +72,97 @@ class WorkflowCompiler:
                 graph.add_edge(dep, step.name)
 
         if not nx.is_directed_acyclic_graph(graph):
-            cycles = list(nx.simple_cycles(graph))
-            raise WorkflowError(f"Workflow contains cycles: {cycles}")
+            raise WorkflowError("Workflow contains a circular dependency (cycle) in its steps.")
 
-    def compile(self, workflow_config: WorkflowConfig, workflow_base_path: Traversable) -> CompiledWorkflowPlan:
+    def _build_context(self) -> Dict[str, Any]:
+        """Builds the execution context from the project configuration."""
+        return {"schemas": self.project_config.schemas}
+
+    def compile(self, workflow_config: WorkflowConfig, workflow_base_path: Path) -> CompiledWorkflowPlan:
         """
-        Compiles the workflow configuration into an executable plan.
+        Compiles a workflow configuration into an executable plan.
 
         Args:
             workflow_config: The user-defined workflow configuration.
-            workflow_base_path: A traversable path object pointing to the
-                                root directory of the workflow definition files.
+            workflow_base_path: The base path for resolving relative file paths
+                                in the workflow steps.
 
         Returns:
-            A CompiledWorkflowPlan object.
+            A `CompiledWorkflowPlan` object.
         """
-        self._validate_dag(workflow_config)
         execution_id = uuid4()
-        context = {"schemas": self.project_config.schemas}
-        compiled_steps: List[CompiledStep] = []
+        context = self._build_context()
+        self._validate_dag(workflow_config.steps)
+
+        compiled_steps: List[Union[CompiledSQLStep, CompiledBulkLoadStep]] = []
 
         for step in workflow_config.steps:
-            query_context = {
+            query_tag_context = {
+                "omopcloudetl_tool": "WorkflowCompiler",
                 "execution_id": str(execution_id),
-                "workflow": workflow_config.workflow_name,
-                "step": step.name,
+                "step_name": step.name,
+                "workflow_name": workflow_config.workflow_name,
             }
 
             if isinstance(step, DMLWorkflowStep):
+                dml_path = workflow_base_path / step.dml_file
                 try:
-                    dml_file_path = workflow_base_path.joinpath(step.dml_file)
-                    dml_content = dml_file_path.read_text()
-                    dml_data = yaml.safe_load(render_jinja_template(dml_content, context))
-                    dml_def = DMLDefinition(**dml_data)
-                    sql = self.sql_generator.generate_transform_sql(dml_def, context)
-                    tagged_sql = apply_query_tag(sql, query_context)
-                    compiled_steps.append(
-                        CompiledSQLStep(
-                            name=step.name,
-                            depends_on=step.depends_on,
-                            sql_statements=[tagged_sql],
-                        )
-                    )
-                except Exception as e:
-                    raise CompilationError(f"Failed to compile DML step '{step.name}'") from e
+                    with open(dml_path, "r") as f:
+                        raw_dml = f.read()
+                    rendered_dml = render_jinja_template(raw_dml, context)
+                    dml_def = DMLDefinition.model_validate(yaml.safe_load(rendered_dml))
+                except (IOError, ValidationError, yaml.YAMLError) as e:
+                    raise DMLValidationError(f"Failed to load, render, or validate DML file {dml_path}") from e
+
+                sql = self.sql_generator.generate_transform_sql(dml_def, context)
+                tagged_sql = apply_query_tag(sql, query_tag_context)
+                compiled_steps.append(
+                    CompiledSQLStep(name=step.name, depends_on=step.depends_on, sql_statements=[tagged_sql])
+                )
 
             elif isinstance(step, DDLWorkflowStep):
-                schema = self.project_config.schemas.get(step.target_schema_ref)
-                if not schema:
+                spec = self.spec_manager.fetch_specification(step.cdm_version)
+                schema_name = context["schemas"].get(step.target_schema_ref)
+                if not schema_name:
                     raise CompilationError(f"Schema reference '{step.target_schema_ref}' not found in project config.")
 
-                spec = self.spec_manager.fetch_specification(step.cdm_version)
-                ddl_statements = self.ddl_generator.generate_ddl(spec, schema, step.options)
-                tagged_statements = [apply_query_tag(s, query_context) for s in ddl_statements]
+                ddl_statements = self.ddl_generator.generate_ddl(spec, schema_name, step.options)
+                tagged_ddl = [apply_query_tag(s, query_tag_context) for s in ddl_statements]
                 compiled_steps.append(
-                    CompiledSQLStep(
-                        name=step.name,
-                        depends_on=step.depends_on,
-                        sql_statements=tagged_statements,
-                    )
+                    CompiledSQLStep(name=step.name, depends_on=step.depends_on, sql_statements=tagged_ddl)
                 )
 
             elif isinstance(step, SQLWorkflowStep):
-                sql_file_path = workflow_base_path.joinpath(step.sql_file)
-                sql_content = sql_file_path.read_text()
-                rendered_sql = render_jinja_template(sql_content, context)
-                tagged_sql = apply_query_tag(rendered_sql, query_context)
+                sql_path = workflow_base_path / step.sql_file
+                try:
+                    with open(sql_path, "r") as f:
+                        raw_sql = f.read()
+                except IOError as e:
+                    raise CompilationError(f"Failed to read SQL file {sql_path}") from e
+
+                rendered_sql = render_jinja_template(raw_sql, context)
+                sql_statements = split_sql_script(rendered_sql)
+                tagged_statements = [apply_query_tag(s, query_tag_context) for s in sql_statements]
                 compiled_steps.append(
-                    CompiledSQLStep(
-                        name=step.name,
-                        depends_on=step.depends_on,
-                        sql_statements=[tagged_sql],
-                    )
+                    CompiledSQLStep(name=step.name, depends_on=step.depends_on, sql_statements=tagged_statements)
                 )
 
             elif isinstance(step, BulkLoadWorkflowStep):
-                resolved_uri = render_jinja_template(step.source_uri_pattern, context)
-                target_schema = self.project_config.schemas.get(step.target_schema_ref)
-                if not target_schema:
+                schema_name = context["schemas"].get(step.target_schema_ref)
+                if not schema_name:
                     raise CompilationError(f"Schema reference '{step.target_schema_ref}' not found in project config.")
+
+                resolved_uri = render_jinja_template(step.source_uri_pattern, context)
 
                 compiled_steps.append(
                     CompiledBulkLoadStep(
                         name=step.name,
                         depends_on=step.depends_on,
                         source_uri=resolved_uri,
-                        target_schema=target_schema,
+                        target_schema=schema_name,
                         target_table=step.target_table,
-                        source_format_options=step.options.get("source_format", {}),
-                        load_options=step.options.get("load", {}),
+                        source_format_options=step.options.get("source_format_options", {}),
+                        load_options=step.options.get("load_options", {}),
                     )
                 )
 
