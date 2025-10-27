@@ -7,3 +7,25 @@
 # Commercial use beyond a 30-day trial requires a separate license.
 #
 # Source Code: https://github.com/CoReason-AI/omopcloudetl_core
+
+from pydantic import BaseModel, Field
+from typing import List, Dict, Optional, Any
+
+
+class CDMFieldSpec(BaseModel):
+    name: str
+    type: str
+    required: bool
+    description: Optional[str] = None
+
+
+class CDMTableSpec(BaseModel):
+    name: str
+    fields: List[CDMFieldSpec]
+    primary_key: List[str]
+    optimizations: Dict[str, Dict[str, Any]] = Field(default_factory=dict)
+
+
+class CDMSpecification(BaseModel):
+    version: str
+    tables: Dict[str, CDMTableSpec]
