@@ -13,8 +13,6 @@ from typing import Any, Dict, Optional
 from pydantic import BaseModel, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from ..exceptions import ConfigurationError
-
 
 class SecretsConfig(BaseModel):
     """Configuration for the secrets provider."""
@@ -56,7 +54,7 @@ class ProjectConfig(BaseModel):
         """Ensure that if a secret is used for the password, a secrets provider is configured."""
         if self.connection.password_secret_id and not self.connection.password:
             if not self.secrets:
-                raise ConfigurationError(
-                    "Connection specifies 'password_secret_id' but no 'secrets' provider is configured."
+                raise ValueError(
+                    "A 'secrets' provider must be configured when 'connection.password_secret_id' is used."
                 )
         return self
