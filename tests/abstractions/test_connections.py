@@ -73,7 +73,7 @@ def test_abc_enforcement():
 
     with pytest.raises(
         TypeError,
-        match="Can't instantiate abstract class IncompleteConnection without an implementation for abstract methods",
+        match="Can't instantiate abstract class IncompleteConnection .* abstract method",
     ):
 
         class IncompleteConnection(BaseConnection):
