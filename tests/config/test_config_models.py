@@ -16,6 +16,7 @@ import pytest
 from pydantic import ValidationError
 
 from omopcloudetl_core.config.models import ConnectionConfig, ProjectConfig
+from omopcloudetl_core.exceptions import ConfigurationError
 
 
 class TestConnectionConfig:
@@ -88,7 +89,7 @@ class TestProjectConfig:
             "orchestrator": {"type": "local"},
             "schemas": {},
         }
-        with pytest.raises(ValueError, match="no 'secrets' provider configuration was found"):
+        with pytest.raises(ConfigurationError, match="A secrets provider must be configured"):
             ProjectConfig(**config_data)
 
     def test_password_secret_id_with_secrets_config_is_valid(self):
