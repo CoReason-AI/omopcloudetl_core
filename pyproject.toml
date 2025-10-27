@@ -8,8 +8,19 @@ readme = "README.md"
 packages = [{include = "omopcloudetl_core", from = "src"}]
 
 [tool.poetry.dependencies]
-python = ">=3.11"
+python = ">=3.11, <3.14"
 loguru = "^0.7.2"
+pydantic = ">=2.0"
+pydantic-settings = ">=2.0"
+PyYAML = "*"
+Jinja2 = "*"
+sqlparse = "*"
+colorama = "*"
+networkx = "*"
+tenacity = ">=8.0.0"
+requests = "*"
+diskcache = "*"
+importlib-metadata = "*"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.2"
@@ -18,17 +29,24 @@ pre-commit = "^3.7.1"
 pytest-cov = "^5.0.0"
 mkdocs = "^1.6.0"
 mkdocs-material = "^9.5.26"
+pytest-mock = "*"
+mypy = "*"
+requests-mock = "*"
+types-PyYAML = "*"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+line-length = 120
 
 [project]
 name = "omopcloudetl_core"
 version = "0.1.0"
 description = "This package is the foundation of the OmopCloudEtl ecosystem. It defines the core abstractions, data models (Configuration, DML, Workflow), and the compilation logic."
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.11, <3.14"
 authors = [
     { name = "Gowtham A Rao", email = "gowtham.rao@scientific-informatics.com" },
 ]
