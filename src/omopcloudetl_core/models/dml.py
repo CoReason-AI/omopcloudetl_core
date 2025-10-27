@@ -9,7 +9,7 @@
 # Source Code: https://github.com/CoReason-AI/omopcloudetl_core
 
 from pydantic import BaseModel, Field
-from typing import List, Dict, Optional, Any, Union, Literal, Annotated
+from typing import List, Optional, Any, Union, Literal, Annotated
 
 
 # 1. Sources and Joins
@@ -46,9 +46,8 @@ class ConstantMapping(BaseMapping):
     value: Any
 
 
-MappingDefinition = Annotated[
-    Union[DirectMapping, ExpressionMapping, ConstantMapping], Field(discriminator="type")
-]
+MappingDefinition = Annotated[Union[DirectMapping, ExpressionMapping, ConstantMapping], Field(discriminator="type")]
+
 
 # 3. Root Definition
 class DMLDefinition(BaseModel):
