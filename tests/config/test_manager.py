@@ -182,9 +182,7 @@ def test_load_config_prefers_direct_password_over_secret(config_manager, tmp_pat
         yaml.dump(config_content, f)
 
     # Mock the secrets provider to ensure it's not called
-    mock_get_secret = mocker.patch(
-        "omopcloudetl_core.abstractions.secrets.EnvironmentSecretsProvider.get_secret"
-    )
+    mock_get_secret = mocker.patch("omopcloudetl_core.abstractions.secrets.EnvironmentSecretsProvider.get_secret")
 
     with patch.dict("os.environ", {secret_key: secret_value}):
         project_config = config_manager.load_project_config(config_file)
@@ -209,9 +207,7 @@ def test_load_config_with_secrets_block_but_no_secret_id(config_manager, tmp_pat
     with open(config_file, "w") as f:
         yaml.dump(config_content, f)
 
-    mock_get_secret = mocker.patch(
-        "omopcloudetl_core.abstractions.secrets.EnvironmentSecretsProvider.get_secret"
-    )
+    mock_get_secret = mocker.patch("omopcloudetl_core.abstractions.secrets.EnvironmentSecretsProvider.get_secret")
 
     project_config = config_manager.load_project_config(config_file)
 
