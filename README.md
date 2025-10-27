@@ -2,7 +2,7 @@
 
 This package is the foundation of the OmopCloudEtl ecosystem. It defines the core abstractions, data models (Configuration, DML, Workflow), and the compilation logic.
 
-[![CI](https://github.com/CoReason-AI/omopcloudetl_core/actions/workflows/ci.yml/badge.svg)](https://github.com/CoReason-AI/omopcloudetl_core/actions/workflows/ci.yml)
+[![CI](https://github.com/CoReason-AI/omopcloudetl_core/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/CoReason-AI/omopcloudetl_core/actions/workflows/ci-cd.yml)
 
 ## Getting Started
 
