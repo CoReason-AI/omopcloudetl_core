@@ -8,7 +8,7 @@ This package is the foundation of the OmopCloudEtl ecosystem. It defines the cor
 
 ### Prerequisites
 
-- Python 3.11+
+- Python 3.11, 3.12, 3.13
 - Poetry
 
 ### Installation
