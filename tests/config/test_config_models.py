@@ -77,3 +77,43 @@ class TestProjectConfig:
         }
         config = ProjectConfig(**config_data)
         assert config.secrets is None
+
+    def test_password_secret_id_without_secrets_config_raises_error(self):
+        """
+        Tests the validator that ensures if a password_secret_id is given,
+        a secrets provider must also be configured.
+        """
+        config_data = {
+            "connection": {"provider_type": "test", "password_secret_id": "my-secret"},
+            "orchestrator": {"type": "local"},
+            "schemas": {},
+        }
+        with pytest.raises(ValueError, match="no 'secrets' provider configuration was found"):
+            ProjectConfig(**config_data)
+
+    def test_password_secret_id_with_secrets_config_is_valid(self):
+        """
+        Tests that the configuration is valid when both password_secret_id
+        and a secrets provider are configured.
+        """
+        config_data = {
+            "connection": {"provider_type": "test", "password_secret_id": "my-secret"},
+            "orchestrator": {"type": "local"},
+            "schemas": {},
+            "secrets": {"provider_type": "env"},
+        }
+        # Should not raise
+        ProjectConfig(**config_data)
+
+    def test_password_secret_id_with_direct_password_is_valid(self):
+        """
+        Tests that the validator does not raise an error if a direct password
+        is also provided, even if the secrets config is missing.
+        """
+        config_data = {
+            "connection": {"provider_type": "test", "password_secret_id": "my-secret", "password": "direct-password"},
+            "orchestrator": {"type": "local"},
+            "schemas": {},
+        }
+        # Should not raise
+        ProjectConfig(**config_data)
