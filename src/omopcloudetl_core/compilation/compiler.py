@@ -142,9 +142,9 @@ class WorkflowCompiler:
 
                 rendered_sql = render_jinja_template(raw_sql, context)
                 sql_statements = split_sql_script(rendered_sql)
-                tagged_sql = [apply_query_tag(s, query_tag_context) for s in sql_statements]
+                tagged_statements = [apply_query_tag(s, query_tag_context) for s in sql_statements]
                 compiled_steps.append(
-                    CompiledSQLStep(name=step.name, depends_on=step.depends_on, sql_statements=tagged_sql)
+                    CompiledSQLStep(name=step.name, depends_on=step.depends_on, sql_statements=tagged_statements)
                 )
 
             elif isinstance(step, BulkLoadWorkflowStep):

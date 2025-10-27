@@ -59,9 +59,7 @@ class MetadataManager:
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         """
-        tagged_sql = apply_query_tag(
-            sql, {"omopcloudetl_tool": "MetadataManager", "execution_id": str(execution_id)}
-        )
+        tagged_sql = apply_query_tag(sql, {"omopcloudetl_tool": "MetadataManager", "execution_id": str(execution_id)})
         self.connection.execute_sql(tagged_sql)
 
     def log_step_start(self, execution_id: UUID, step_name: str) -> None:
@@ -143,7 +141,7 @@ class MetadataManager:
 
         sql = f"""
         UPDATE {self.METADATA_TABLE}
-        SET {', '.join(update_clauses)}
+        SET {", ".join(update_clauses)}
         WHERE
             execution_id = ? AND
             step_name = ? AND
