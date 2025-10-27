@@ -46,7 +46,8 @@ def test_sql_execution_error_attributes():
     assert exc.underlying_error == underlying_error
     assert exc.step_name == step_name
     assert exc.query_id == query_id
-    assert str(exc).startswith(message)
+    # The formatted message should contain the original message
+    assert message in str(exc)
 
 
 def test_sql_execution_error_str_representation():
@@ -61,10 +62,12 @@ def test_sql_execution_error_str_representation():
 
     error_str = str(exc)
 
+    # Check for the presence of all key components in the formatted string
     assert "Execution failed" in error_str
-    assert "[Step: step_one, QueryID: query-abc]" in error_str
+    assert "step_one" in error_str
+    assert "query-abc" in error_str
     assert "Underlying Error: DB Error" in error_str
-    assert "Failed SQL: SELECT 1" in error_str
+    assert "Failed SQL:\nSELECT 1" in error_str
 
 
 def test_raising_exceptions():

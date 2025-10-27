@@ -8,9 +8,10 @@
 #
 # Source Code: https://github.com/CoReason-AI/omopcloudetl_core
 
+from typing import Any, Dict, Optional
+
 from pydantic import BaseModel, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import Optional, Dict, Any
 
 from omopcloudetl_core.exceptions import ConfigurationError
 
@@ -30,24 +31,20 @@ class OrchestratorConfig(BaseModel):
 
 
 class ConnectionConfig(BaseSettings):
-    """Configuration for the database connection."""
+    """Configuration for the database connection, supporting environment variable overrides."""
 
     provider_type: str
     host: Optional[str] = None
     user: Optional[str] = None
-    # Password can be set via env var, direct value, or secret_id lookup
     password: Optional[SecretStr] = None
     password_secret_id: Optional[str] = None
     extra_settings: Dict[str, Any] = {}
 
     model_config = SettingsConfigDict(
-        # HLD Mandate: Global Renaming (Ecosystem Name)
         env_prefix="OMOPCLOUDETL_CONN_",
         env_nested_delimiter="__",
         case_sensitive=False,
     )
-    # Note: Full password resolution validation will happen in the ConfigManager
-    # after the secrets provider has been initialized.
 
 
 class ProjectConfig(BaseModel):
@@ -59,14 +56,13 @@ class ProjectConfig(BaseModel):
     secrets: Optional[SecretsConfig] = None
 
     @model_validator(mode="after")
-    def check_secrets_configured_for_secret_id(self) -> "ProjectConfig":
+    def check_secrets_provider_for_password_secret(self) -> "ProjectConfig":
         """
-        Validate that if a secret ID is used for the password and no direct
-        password is provided, a secrets provider must also be configured.
+        Validate that if a password_secret_id is provided, a secrets provider
+        is also configured.
         """
-        if self.connection.password_secret_id and not self.connection.password and not self.secrets:
+        if self.connection.password_secret_id is not None and self.connection.password is None and self.secrets is None:
             raise ConfigurationError(
-                "A secrets provider must be configured in 'secrets' when "
-                "'connection.password_secret_id' is used without a direct 'password'."
+                "A 'secrets' provider must be configured when 'connection.password_secret_id' is used."
             )
         return self

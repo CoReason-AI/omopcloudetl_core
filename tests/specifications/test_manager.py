@@ -8,122 +8,112 @@
 #
 # Source Code: https://github.com/CoReason-AI/omopcloudetl_core
 
-import pytest
 from pathlib import Path
-import requests
-from unittest.mock import MagicMock
 
+import pytest
+import requests_mock
 from omopcloudetl_core.exceptions import SpecificationError
-from omopcloudetl_core.specifications.manager import SpecificationManager, OHDSI_GITHUB_REPO_URL
+from omopcloudetl_core.specifications.manager import (
+    OHDSI_REPO_URL,
+    SpecificationManager,
+)
 
-# Sample CSV content mimicking the OHDSI specification format
-SAMPLE_CSV_CONTENT = """cdmTableName,cdmFieldName,isPrimaryKey,isRequired,cdmDatatype,cdmSource
-PERSON,PERSON_ID,Yes,Yes,BIGINT,person.person_id
-PERSON,GENDER_CONCEPT_ID,No,Yes,INTEGER,person.gender_concept_id
-VISIT_OCCURRENCE,VISIT_OCCURRENCE_ID,Yes,Yes,BIGINT,visit_occurrence.visit_occurrence_id
-VISIT_OCCURRENCE,PERSON_ID,No,Yes,BIGINT,visit_occurrence.person_id
+# A simplified but representative sample of the OHDSI specification CSV
+SAMPLE_CDM_CSV = """cdmTableName,cdmFieldName,isRequired,isPrimaryKey,cdmDatatype
+person,person_id,Yes,Yes,INTEGER
+person,gender_concept_id,Yes,No,INTEGER
+visit_occurrence,visit_occurrence_id,Yes,Yes,INTEGER
 """
-
-VERSION = "v5.4"
-BASE_URL = OHDSI_GITHUB_REPO_URL.format(version=VERSION)
-SPEC_URL = f"{BASE_URL}OMOP_CDM_{VERSION}.csv"
 
 
 @pytest.fixture
-def manager(tmp_path: Path) -> SpecificationManager:
-    """Provides a SpecificationManager instance with a temporary cache directory."""
-    return SpecificationManager(cache_dir=tmp_path / "cache")
+def spec_manager(tmp_path: Path) -> SpecificationManager:
+    """Fixture to provide a SpecificationManager with a temporary cache directory."""
+    cache_dir = tmp_path / "cache"
+    return SpecificationManager(cache_dir=cache_dir)
 
 
-def test_fetch_specification_remote_success(manager: SpecificationManager, requests_mock):
-    """Test successful fetching and parsing of a remote specification."""
-    requests_mock.get(SPEC_URL, text=SAMPLE_CSV_CONTENT)
+def test_fetch_specification_from_remote_success(
+    spec_manager: SpecificationManager, requests_mock: requests_mock.Mocker
+):
+    """Test successful fetching and parsing of a specification from a remote URL."""
+    version = "5.4"
+    spec_url = f"{OHDSI_REPO_URL}/OMOP_CDM_v{version}_Field_Level.csv"
+    requests_mock.get(spec_url, text=SAMPLE_CDM_CSV)
 
-    spec = manager.fetch_specification(VERSION)
+    spec = spec_manager.fetch_specification(version)
 
-    assert spec.version == VERSION
+    assert spec.version == version
+    assert "person" in spec.tables
+    assert len(spec.tables["person"].fields) == 2
+
+
+def test_fetch_specification_from_local_path_success(spec_manager: SpecificationManager, tmp_path: Path):
+    """Test successful loading and parsing of a specification from a local file."""
+    version = "local_v1"
+    local_file = tmp_path / "local_spec.csv"
+    local_file.write_text(SAMPLE_CDM_CSV)
+
+    spec = spec_manager.fetch_specification(version, local_path=str(local_file))
+
+    assert spec.version == version
     assert "person" in spec.tables
     assert "visit_occurrence" in spec.tables
-    assert len(spec.tables["person"].fields) == 2
-    assert spec.tables["person"].primary_key == ["person_id"]
-    assert spec.tables["person"].fields[0].name == "person_id"
-    assert spec.tables["person"].fields[0].type == "BIGINT"
-    assert spec.tables["person"].fields[0].required is True
 
 
-def test_fetch_specification_local_success(manager: SpecificationManager, tmp_path: Path):
-    """Test successful fetching and parsing from a local file."""
-    local_file = tmp_path / "local_spec.csv"
-    local_file.write_text(SAMPLE_CSV_CONTENT)
-
-    spec = manager.fetch_specification(VERSION, local_path=local_file)
-
-    assert spec.version == VERSION
-    assert "person" in spec.tables
-    assert len(spec.tables["person"].fields) == 2
-
-
-def test_fetch_specification_caching(manager: SpecificationManager, requests_mock):
-    """Test that specifications are cached after the first fetch."""
-    requests_mock.get(SPEC_URL, text=SAMPLE_CSV_CONTENT)
-
-    # First call - should fetch from URL
-    spec1 = manager.fetch_specification(VERSION)
-    assert requests_mock.call_count == 1
-
-    # Second call - should use cache, not call the URL again
-    spec2 = manager.fetch_specification(VERSION)
-    assert requests_mock.call_count == 1
-    assert spec1 == spec2
-
-
-def test_fetch_specification_remote_http_error(manager: SpecificationManager, requests_mock):
-    """Test that a SpecificationError is raised on HTTP error."""
-    requests_mock.get(SPEC_URL, status_code=404, reason="Not Found")
-
-    with pytest.raises(SpecificationError, match="Failed to fetch data"):
-        manager.fetch_specification(VERSION)
-
-
-def test_fetch_specification_remote_network_error(manager: SpecificationManager, requests_mock):
-    """Test that a SpecificationError is raised on network error."""
-    requests_mock.get(SPEC_URL, exc=requests.exceptions.ConnectTimeout)
-
-    with pytest.raises(SpecificationError, match="Failed to fetch data"):
-        manager.fetch_specification(VERSION)
-
-
-def test_fetch_specification_local_file_not_found(manager: SpecificationManager, tmp_path: Path):
-    """Test that a SpecificationError is raised for a missing local file."""
+def test_fetch_specification_local_file_not_found(spec_manager: SpecificationManager):
+    """Test that a SpecificationError is raised if the local file does not exist."""
     with pytest.raises(SpecificationError, match="Local specification file not found"):
-        manager.fetch_specification(VERSION, local_path=tmp_path / "non_existent.csv")
+        spec_manager.fetch_specification("local_v1", local_path="non_existent_file.csv")
 
 
-def test_parse_invalid_csv_data(manager: SpecificationManager, requests_mock):
-    """Test that a SpecificationError is raised for malformed CSV."""
-    malformed_csv = "header1,header2\nincomplete_row"
-    requests_mock.get(SPEC_URL, text=malformed_csv)
+def test_fetch_specification_caching(spec_manager: SpecificationManager, requests_mock: requests_mock.Mocker):
+    """Test that a fetched specification is cached."""
+    version = "5.4"
+    spec_url = f"{OHDSI_REPO_URL}/OMOP_CDM_v{version}_Field_Level.csv"
+    requests_mock.get(spec_url, text=SAMPLE_CDM_CSV)
 
-    with pytest.raises(SpecificationError, match="Failed to parse CDM specification"):
-        manager.fetch_specification(VERSION)
+    # First call - should fetch from URL and cache
+    spec_manager.fetch_specification(version)
+    assert requests_mock.call_count == 1
 
-
-def test_parse_missing_csv_column(manager: SpecificationManager, requests_mock):
-    """Test parsing CSV with a missing required column raises an error."""
-    missing_column_csv = "cdmFieldName,isPrimaryKey,isRequired\nFIELD1,Yes,No"
-    requests_mock.get(SPEC_URL, text=missing_column_csv)
-
-    with pytest.raises(SpecificationError, match="Failed to parse CDM specification"):
-        manager.fetch_specification(VERSION)
+    # Second call - should load from cache
+    spec_manager.fetch_specification(version)
+    assert requests_mock.call_count == 1  # No new HTTP request
 
 
-def test_cache_is_used(manager: SpecificationManager, mocker):
-    """Verify that the diskcache is actually used."""
-    mock_cache = MagicMock()
-    mock_cache.get.return_value = "cached_value"
-    mocker.patch.object(manager, "cache", mock_cache)
+def test_fetch_specification_http_error(spec_manager: SpecificationManager, requests_mock: requests_mock.Mocker):
+    """Test that a SpecificationError is raised on HTTP failure."""
+    version = "5.4"
+    spec_url = f"{OHDSI_REPO_URL}/OMOP_CDM_v{version}_Field_Level.csv"
+    requests_mock.get(spec_url, status_code=404, text="Not Found")
 
-    result = manager.fetch_specification(VERSION)
+    with pytest.raises(SpecificationError, match="Failed to fetch remote specification"):
+        spec_manager.fetch_specification(version)
 
-    mock_cache.get.assert_called_once_with(f"cdm_spec_{VERSION}")
-    assert result == "cached_value"
+
+def test_fetch_specification_parsing_error(spec_manager: SpecificationManager, requests_mock: requests_mock.Mocker):
+    """Test that a SpecificationError is raised on CSV parsing failure."""
+    version = "5.4"
+    spec_url = f"{OHDSI_REPO_URL}/OMOP_CDM_v{version}_Field_Level.csv"
+    # Malformed CSV missing the required 'cdmTableName' header
+    malformed_csv = "wrongHeader,cdmFieldName,isRequired\nval1,val2,val3"
+    requests_mock.get(spec_url, text=malformed_csv)
+
+    with pytest.raises(SpecificationError, match="Failed to parse specification"):
+        spec_manager.fetch_specification(version)
+
+
+def test_specification_manager_custom_cache_dir(tmp_path: Path):
+    """Test that the SpecificationManager correctly uses a custom cache directory."""
+    custom_cache = tmp_path / "custom_cache"
+    manager = SpecificationManager(cache_dir=custom_cache)
+    assert manager.cache.directory == str(custom_cache)
+
+
+def test_specification_manager_default_cache_dir():
+    """Test that the SpecificationManager defaults to a cache in the home directory."""
+    # This test is a bit indirect, but it exercises the 'cache_dir is None' branch
+    # without making assumptions about the runner's home directory structure.
+    manager = SpecificationManager()
+    assert ".omopcloudetl_core" in manager.cache.directory

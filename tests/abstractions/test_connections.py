@@ -12,6 +12,7 @@ import pytest
 from typing import Any, Dict, Type
 from omopcloudetl_core.abstractions.connections import BaseConnection, ScalabilityTier
 from omopcloudetl_core.abstractions.generators import BaseDDLGenerator, BaseSQLGenerator
+from omopcloudetl_core.config.models import ConnectionConfig
 from omopcloudetl_core.models.metrics import ExecutionMetrics, LoadMetrics
 
 
@@ -60,7 +61,9 @@ class ConcreteConnection(BaseConnection):
 def test_concrete_connection_instantiation():
     """Tests that a correctly implemented concrete class can be instantiated."""
     try:
-        conn = ConcreteConnection()
+        # A concrete class must accept the config object, even if it doesn't use it.
+        config = ConnectionConfig(provider_type="test")
+        conn = ConcreteConnection(config)
         assert conn is not None
         assert conn.provider_type == "test"
         assert conn.scalability_tier == ScalabilityTier.TIER_3_SINGLE_NODE
@@ -84,7 +87,8 @@ def test_abc_enforcement():
                 return super().connect()
 
         # This line should raise TypeError
-        IncompleteConnection()
+        config = ConnectionConfig(provider_type="incomplete")
+        IncompleteConnection(config)
 
 
 def test_scalability_tier_enum():
