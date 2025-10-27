@@ -10,7 +10,10 @@
 
 
 import pytest
-from omopcloudetl_core.abstractions.secrets import EnvironmentSecretsProvider
+from omopcloudetl_core.abstractions.secrets import (
+    BaseSecretsProvider,
+    EnvironmentSecretsProvider,
+)
 from omopcloudetl_core.exceptions import SecretAccessError
 
 
@@ -27,3 +30,11 @@ def test_get_secret_success(secrets_provider, monkeypatch):
 def test_get_secret_not_found(secrets_provider):
     with pytest.raises(SecretAccessError, match="Secret not found in environment: NON_EXISTENT_SECRET"):
         secrets_provider.get_secret("NON_EXISTENT_SECRET")
+
+
+def test_abstract_method_not_implemented():
+    class IncompleteSecretsProvider(BaseSecretsProvider):
+        pass
+
+    with pytest.raises(TypeError):
+        IncompleteSecretsProvider()

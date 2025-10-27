@@ -15,8 +15,8 @@ import os
 
 class BaseSecretsProvider(ABC):
     @abstractmethod
-    def get_secret(self, secret_identifier: str) -> str:
-        pass
+    def get_secret(self, secret_identifier: str) -> str:  # pragma: no cover
+        raise NotImplementedError
 
 
 class EnvironmentSecretsProvider(BaseSecretsProvider):
