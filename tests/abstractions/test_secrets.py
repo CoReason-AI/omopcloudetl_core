@@ -13,6 +13,7 @@ from unittest.mock import patch
 from omopcloudetl_core.abstractions.secrets import EnvironmentSecretsProvider
 from omopcloudetl_core.exceptions import SecretAccessError
 
+
 def test_get_secret_exists():
     """
     Tests that the EnvironmentSecretsProvider returns the secret value when the environment variable is set.
@@ -21,8 +22,9 @@ def test_get_secret_exists():
     secret_key = "MY_TEST_SECRET"
     secret_value = "my_secret_value"
 
-    with patch.dict('os.environ', {secret_key: secret_value}):
+    with patch.dict("os.environ", {secret_key: secret_value}):
         assert provider.get_secret(secret_key) == secret_value
+
 
 def test_get_secret_not_exists():
     """
@@ -31,6 +33,6 @@ def test_get_secret_not_exists():
     provider = EnvironmentSecretsProvider()
     secret_key = "NON_EXISTENT_SECRET"
 
-    with patch.dict('os.environ', {}, clear=True):
+    with patch.dict("os.environ", {}, clear=True):
         with pytest.raises(SecretAccessError, match=f"Secret not found in environment: {secret_key}"):
             provider.get_secret(secret_key)

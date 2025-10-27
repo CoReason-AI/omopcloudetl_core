@@ -17,18 +17,21 @@ from omopcloudetl_core.exceptions import ConfigurationError
 
 class SecretsConfig(BaseModel):
     """Configuration for the secrets provider."""
+
     provider_type: str
     configuration: Dict[str, Any] = {}
 
 
 class OrchestratorConfig(BaseModel):
     """Configuration for the orchestrator."""
+
     type: str
     configuration: Dict[str, Any] = {}
 
 
 class ConnectionConfig(BaseSettings):
     """Configuration for the database connection."""
+
     provider_type: str
     host: Optional[str] = None
     user: Optional[str] = None
@@ -39,9 +42,9 @@ class ConnectionConfig(BaseSettings):
 
     model_config = SettingsConfigDict(
         # HLD Mandate: Global Renaming (Ecosystem Name)
-        env_prefix='OMOPCLOUDETL_CONN_',
-        env_nested_delimiter='__',
-        case_sensitive=False
+        env_prefix="OMOPCLOUDETL_CONN_",
+        env_nested_delimiter="__",
+        case_sensitive=False,
     )
     # Note: Full password resolution validation will happen in the ConfigManager
     # after the secrets provider has been initialized.
@@ -49,22 +52,19 @@ class ConnectionConfig(BaseSettings):
 
 class ProjectConfig(BaseModel):
     """The root configuration model for an omopcloudetl project."""
+
     connection: ConnectionConfig
     orchestrator: OrchestratorConfig
     schemas: Dict[str, str]
     secrets: Optional[SecretsConfig] = None
 
-    @model_validator(mode='after')
-    def check_secrets_configured_for_secret_id(self) -> 'ProjectConfig':
+    @model_validator(mode="after")
+    def check_secrets_configured_for_secret_id(self) -> "ProjectConfig":
         """
         Validate that if a secret ID is used for the password and no direct
         password is provided, a secrets provider must also be configured.
         """
-        if (
-            self.connection.password_secret_id and
-            not self.connection.password and
-            not self.secrets
-        ):
+        if self.connection.password_secret_id and not self.connection.password and not self.secrets:
             raise ConfigurationError(
                 "A secrets provider must be configured in 'secrets' when "
                 "'connection.password_secret_id' is used without a direct 'password'."

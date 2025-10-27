@@ -15,6 +15,7 @@ from pydantic import ValidationError
 from omopcloudetl_core.config.models import ProjectConfig
 from omopcloudetl_core.exceptions import ConfigurationError
 
+
 class ConfigManager:
     """Manages the loading and validation of project configuration."""
 
@@ -37,7 +38,7 @@ class ConfigManager:
             raise ConfigurationError(f"Configuration file not found at: {config_path}")
 
         try:
-            with open(config_path, 'r') as f:
+            with open(config_path, "r") as f:
                 config_data = yaml.safe_load(f)
         except yaml.YAMLError as e:
             raise ConfigurationError(f"Error parsing YAML configuration file: {e}") from e
@@ -54,9 +55,9 @@ class ConfigManager:
         # to dynamically load the correct secrets provider. For now, we default
         # to the EnvironmentSecretsProvider as per the specification.
         if (
-            project_config.secrets and
-            project_config.connection.password_secret_id and
-            not project_config.connection.password
+            project_config.secrets
+            and project_config.connection.password_secret_id
+            and not project_config.connection.password
         ):
             # Local import to avoid circular dependencies if DiscoveryManager is used here later
             from omopcloudetl_core.abstractions.secrets import EnvironmentSecretsProvider
@@ -74,7 +75,7 @@ class ConfigManager:
                 # Pydantic models are immutable by default, so we need to create a new object
                 # for the update.
                 connection_data = project_config.connection.model_dump()
-                connection_data['password'] = resolved_password
+                connection_data["password"] = resolved_password
 
                 # Re-create the connection config and update the project config
                 new_connection_config = type(project_config.connection)(**connection_data)

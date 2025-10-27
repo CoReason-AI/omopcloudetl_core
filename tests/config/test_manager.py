@@ -11,13 +11,16 @@
 import pytest
 from pathlib import Path
 import yaml
+from unittest.mock import patch
 
 from omopcloudetl_core.config.manager import ConfigManager
 from omopcloudetl_core.exceptions import ConfigurationError
 
+
 @pytest.fixture
 def config_manager():
     return ConfigManager()
+
 
 def test_load_project_config_success(config_manager, tmp_path: Path):
     """
@@ -26,15 +29,16 @@ def test_load_project_config_success(config_manager, tmp_path: Path):
     config_content = {
         "connection": {"provider_type": "test_db"},
         "orchestrator": {"type": "local"},
-        "schemas": {"source": "raw", "target": "cdm"}
+        "schemas": {"source": "raw", "target": "cdm"},
     }
     config_file = tmp_path / "config.yml"
-    with open(config_file, 'w') as f:
+    with open(config_file, "w") as f:
         yaml.dump(config_content, f)
 
     project_config = config_manager.load_project_config(config_file)
     assert project_config.connection.provider_type == "test_db"
     assert project_config.orchestrator.type == "local"
+
 
 def test_load_config_file_not_found(config_manager):
     """
@@ -44,14 +48,16 @@ def test_load_config_file_not_found(config_manager):
     with pytest.raises(ConfigurationError, match="Configuration file not found"):
         config_manager.load_project_config(non_existent_path)
 
+
 def test_load_config_invalid_yaml(config_manager, tmp_path: Path):
     """
     Tests that a ConfigurationError is raised for a file with invalid YAML syntax.
     """
     config_file = tmp_path / "invalid.yml"
-    config_file.write_text("connection: { provider_type: test_db") # Malformed YAML
+    config_file.write_text("connection: { provider_type: test_db")  # Malformed YAML
     with pytest.raises(ConfigurationError, match="Error parsing YAML"):
         config_manager.load_project_config(config_file)
+
 
 def test_load_config_empty_file(config_manager, tmp_path: Path):
     """
@@ -62,6 +68,7 @@ def test_load_config_empty_file(config_manager, tmp_path: Path):
     with pytest.raises(ConfigurationError, match="Configuration file is empty"):
         config_manager.load_project_config(config_file)
 
+
 def test_load_config_validation_error(config_manager, tmp_path: Path):
     """
     Tests that a ConfigurationError is raised if the configuration
@@ -69,16 +76,15 @@ def test_load_config_validation_error(config_manager, tmp_path: Path):
     """
     config_content = {
         "orchestrator": {"type": "local"},
-        "schemas": {"source": "raw", "target": "cdm"}
-    } # Missing 'connection'
+        "schemas": {"source": "raw", "target": "cdm"},
+    }  # Missing 'connection'
     config_file = tmp_path / "invalid_schema.yml"
-    with open(config_file, 'w') as f:
+    with open(config_file, "w") as f:
         yaml.dump(config_content, f)
 
     with pytest.raises(ConfigurationError, match="Configuration validation failed"):
         config_manager.load_project_config(config_file)
 
-from unittest.mock import patch
 
 def test_load_config_with_secret_resolution(config_manager, tmp_path: Path):
     """
@@ -92,19 +98,20 @@ def test_load_config_with_secret_resolution(config_manager, tmp_path: Path):
         "connection": {"provider_type": "test_db", "password_secret_id": secret_key},
         "orchestrator": {"type": "local"},
         "schemas": {"source": "raw", "target": "cdm"},
-        "secrets": {"provider_type": "environment"}
+        "secrets": {"provider_type": "environment"},
     }
     config_file = tmp_path / "config_with_secret.yml"
-    with open(config_file, 'w') as f:
+    with open(config_file, "w") as f:
         yaml.dump(config_content, f)
 
-    with patch.dict('os.environ', {secret_key: secret_value}):
+    with patch.dict("os.environ", {secret_key: secret_value}):
         project_config = config_manager.load_project_config(config_file)
 
     assert project_config.connection.password_secret_id == secret_key
     assert project_config.secrets.provider_type == "environment"
     assert project_config.connection.password is not None
     assert project_config.connection.password.get_secret_value() == secret_value
+
 
 def test_load_config_secret_resolution_fails(config_manager, tmp_path: Path):
     """
@@ -114,10 +121,10 @@ def test_load_config_secret_resolution_fails(config_manager, tmp_path: Path):
         "connection": {"provider_type": "test_db", "password_secret_id": "NON_EXISTENT_SECRET"},
         "orchestrator": {"type": "local"},
         "schemas": {"source": "raw", "target": "cdm"},
-        "secrets": {"provider_type": "environment"}
+        "secrets": {"provider_type": "environment"},
     }
     config_file = tmp_path / "config_with_failing_secret.yml"
-    with open(config_file, 'w') as f:
+    with open(config_file, "w") as f:
         yaml.dump(config_content, f)
 
     with pytest.raises(ConfigurationError, match="Failed to resolve secret"):
