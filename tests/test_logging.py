@@ -47,6 +47,12 @@ class TestLogging(unittest.TestCase):
         self.assertIn(expected_error, formatted_message)
         self.assertIn("Test message", formatted_message)
 
+    def test_get_logger_singleton(self):
+        """Test that get_logger returns the same instance for the same name."""
+        logger1 = get_logger("singleton_logger")
+        logger2 = get_logger("singleton_logger")
+        self.assertIs(logger1, logger2)
+
 
 if __name__ == "__main__":
     unittest.main()
