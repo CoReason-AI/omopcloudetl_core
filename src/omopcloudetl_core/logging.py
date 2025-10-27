@@ -1,18 +1,20 @@
 import logging
 import sys
-from threading import RLock
+import threading
 
 from colorama import Fore, Style, init
 
-# Perform initialization for colorama
+# Initialize colorama
 init(autoreset=True)
 
 
-class ColorFormatter(logging.Formatter):
-    """A logging formatter that adds color to log levels."""
+class ColorizedFormatter(logging.Formatter):
+    """
+    A custom logging formatter that adds color to log levels.
+    """
 
-    LEVEL_COLORS = {
-        logging.DEBUG: Fore.BLUE,
+    LOG_LEVEL_COLORS = {
+        logging.DEBUG: Fore.CYAN,
         logging.INFO: Fore.GREEN,
         logging.WARNING: Fore.YELLOW,
         logging.ERROR: Fore.RED,
@@ -20,52 +22,36 @@ class ColorFormatter(logging.Formatter):
     }
 
     def format(self, record):
-        color = self.LEVEL_COLORS.get(record.levelno)
-        level_name = f"{color}{record.levelname}{Style.RESET_ALL}" if color else record.levelname
-        record.levelname = level_name
+        color = self.LOG_LEVEL_COLORS.get(record.levelno)
+        # Add color to levelname
+        record.levelname = f"{color}{record.levelname}{Style.RESET_ALL}"
         return super().format(record)
 
 
-# Thread-safe lock for logger initialization
-_lock = RLock()
-_logger_initialized = False
+_loggers: dict[str, logging.Logger] = {}
+_lock = threading.Lock()
 
 
-def setup_logging(level=logging.INFO):
+def get_logger(name: str, level: int = logging.INFO) -> logging.Logger:
     """
-    Set up the root logger for the application.
+    Returns a configured, thread-safe logger instance.
 
-    This function is thread-safe and ensures that logging is configured only once.
+    This function ensures that a logger is configured only once and is safe
+    to be called from multiple threads.
     """
-    global _logger_initialized
     with _lock:
-        if _logger_initialized:
-            return
+        if name in _loggers:
+            return _loggers[name]
 
-        logger = logging.getLogger("omopcloudetl_core")
+        logger = logging.getLogger(name)
         logger.setLevel(level)
+        logger.propagate = False  # Prevent logs from being passed to the root logger
 
-        # Prevent log messages from being propagated to the root logger
-        logger.propagate = False
+        if not logger.handlers:
+            handler = logging.StreamHandler(sys.stdout)
+            formatter = ColorizedFormatter("%(asctime)s - %(threadName)s - %(name)s - %(levelname)s - %(message)s")
+            handler.setFormatter(formatter)
+            logger.addHandler(handler)
 
-        # Create a handler that writes to standard error
-        handler = logging.StreamHandler(sys.stderr)
-
-        # Create a formatter and set it for the handler
-        formatter = ColorFormatter(
-            "%(asctime)s - %(name)s - %(threadName)s - %(levelname)s - %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S",
-        )
-        handler.setFormatter(formatter)
-
-        # Add the handler to the logger
-        logger.addHandler(handler)
-
-        _logger_initialized = True
-        logger.info("Logger initialized.")
-
-
-# Automatically set up logging when the module is imported
-setup_logging()
-
-# You can get the logger by calling logging.getLogger("omopcloudetl_core")
+        _loggers[name] = logger
+        return logger
