@@ -38,9 +38,7 @@ def test_ddl_generator_abc_enforcement():
 
     # Test that a complete implementation works
     class CompleteDDL(BaseDDLGenerator):
-        def generate_ddl(
-            self, specification: CDMSpecification, schema_name: str, options: dict
-        ) -> List[str]:
+        def generate_ddl(self, specification: CDMSpecification, schema_name: str, options: dict) -> List[str]:
             return ["CREATE TABLE foo;"]
 
     assert CompleteDDL() is not None
@@ -57,9 +55,7 @@ def test_sql_generator_abc_enforcement():
 
     # Test that a complete implementation works
     class CompleteSQL(BaseSQLGenerator):
-        def generate_transform_sql(
-            self, dml_definition: DMLDefinition, context: Dict[str, Any]
-        ) -> str:
+        def generate_transform_sql(self, dml_definition: DMLDefinition, context: Dict[str, Any]) -> str:
             return "SELECT 1;"
 
     assert CompleteSQL() is not None
