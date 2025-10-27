@@ -9,7 +9,8 @@
 # Source Code: https://github.com/CoReason-AI/omopcloudetl_core
 
 from pydantic import BaseModel, Field
-from typing import List, Dict, Optional, Any, Union, Literal, Annotated
+from typing import List, Optional, Any, Union, Literal, Annotated
+
 
 # 1. Sources and Joins
 class SourceTable(BaseModel):
@@ -18,31 +19,35 @@ class SourceTable(BaseModel):
     # Reference to a schema defined in ProjectConfig (e.g., "source_schema")
     schema_ref: str
 
+
 class Join(BaseModel):
     target: SourceTable
-    on_condition: str # SQL expression
+    on_condition: str  # SQL expression
     type: Literal["inner", "left", "right", "full"] = "left"
+
 
 # 2. Mappings (Discriminated Union)
 class BaseMapping(BaseModel):
     target_field: str
 
+
 class DirectMapping(BaseMapping):
     type: Literal["direct"] = "direct"
-    source_field: str # e.g., "p.patient_id"
+    source_field: str  # e.g., "p.patient_id"
+
 
 class ExpressionMapping(BaseMapping):
     type: Literal["expression"] = "expression"
-    sql: str # e.g., "COALESCE(p.gender, 0)"
+    sql: str  # e.g., "COALESCE(p.gender, 0)"
+
 
 class ConstantMapping(BaseMapping):
     type: Literal["constant"] = "constant"
     value: Any
 
-MappingDefinition = Annotated[
-    Union[DirectMapping, ExpressionMapping, ConstantMapping],
-    Field(discriminator="type")
-]
+
+MappingDefinition = Annotated[Union[DirectMapping, ExpressionMapping, ConstantMapping], Field(discriminator="type")]
+
 
 # 3. Root Definition
 class DMLDefinition(BaseModel):
