@@ -71,7 +71,11 @@ def test_concrete_connection_instantiation():
 def test_abc_enforcement():
     """Tests that the ABC enforces implementation of abstract methods."""
 
-    with pytest.raises(TypeError, match="Can't instantiate abstract class IncompleteConnection without an implementation for abstract methods"):
+    with pytest.raises(
+        TypeError,
+        match="Can't instantiate abstract class IncompleteConnection without an implementation for abstract methods",
+    ):
+
         class IncompleteConnection(BaseConnection):
             SQL_GENERATOR_CLASS: Type[BaseSQLGenerator] = _TestSQLGenerator
             DDL_GENERATOR_CLASS: Type[BaseDDLGenerator] = _TestDDLGenerator
@@ -81,6 +85,7 @@ def test_abc_enforcement():
 
         # This line should raise TypeError
         IncompleteConnection()
+
 
 def test_scalability_tier_enum():
     """Tests the values of the ScalabilityTier enum."""
