@@ -37,9 +37,11 @@ schemas:
   target: "cdm"
 """
 
+
 @pytest.fixture
 def manager():
     return ConfigManager()
+
 
 def test_load_config_success(manager):
     with patch("builtins.open", mock_open(read_data=VALID_YAML)):
@@ -49,16 +51,19 @@ def test_load_config_success(manager):
     assert config.orchestrator.type == "local"
     assert config.schemas["source"] == "raw"
 
+
 def test_load_config_not_found(manager):
     with patch.object(Path, "is_file", return_value=False):
         with pytest.raises(ConfigurationError, match="Configuration file not found"):
             manager.load_project_config(Path("non_existent_file.yml"))
 
+
 def test_load_config_invalid_yaml(manager):
     with patch("builtins.open", mock_open(read_data=INVALID_YAML)):
         with patch.object(Path, "is_file", return_value=True):
-             with pytest.raises(ConfigurationError, match="Failed to load or validate configuration"):
+            with pytest.raises(ConfigurationError, match="Failed to load or validate configuration"):
                 manager.load_project_config(Path("dummy/path/invalid.yml"))
+
 
 def test_secret_resolution_success(manager):
     with patch("builtins.open", mock_open(read_data=YAML_WITH_SECRET)):
@@ -66,6 +71,7 @@ def test_secret_resolution_success(manager):
             with patch.dict("os.environ", {"DB_PASSWORD": "supersecret"}):
                 config = manager.load_project_config(Path("dummy/path/secret.yml"))
     assert config.connection.password.get_secret_value() == "supersecret"
+
 
 def test_secret_resolution_failure(manager):
     with patch("builtins.open", mock_open(read_data=YAML_WITH_SECRET)):

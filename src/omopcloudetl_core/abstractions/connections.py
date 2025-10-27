@@ -10,7 +10,7 @@
 
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Any, Dict, Optional, Sequence, TYPE_CHECKING, Type
+from typing import Any, Dict, TYPE_CHECKING, Type
 
 from omopcloudetl_core.models.metrics import ExecutionMetrics, LoadMetrics
 
@@ -66,22 +66,9 @@ class BaseConnection(ABC):
 
     # fmt: off
     @abstractmethod
-    def execute_sql(
-        self, sql: str, params: Optional[Sequence[Any]] = None, commit: bool = True
-    ) -> ExecutionMetrics:  # pragma: no cover
+    def execute_sql(self, sql: str, commit: bool = True) -> ExecutionMetrics:  # pragma: no cover
         """
-        Executes a SQL statement, optionally with parameters, and returns
-        structured execution metrics.
-
-        Args:
-            sql: The SQL statement to execute.
-            params: A sequence of parameters to bind to the SQL statement,
-                    preventing SQL injection. The parameter style (e.g., qmark,
-                    numeric) is driver-dependent.
-            commit: If True, commit the transaction.
-
-        Returns:
-            Structured execution metrics.
+        Executes a SQL statement and returns structured execution metrics.
         """
         pass
     # fmt: on

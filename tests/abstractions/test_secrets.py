@@ -13,12 +13,14 @@ from unittest.mock import patch
 from omopcloudetl_core.abstractions.secrets import EnvironmentSecretsProvider
 from omopcloudetl_core.exceptions import SecretAccessError
 
+
 def test_get_secret_success():
     provider = EnvironmentSecretsProvider()
     secret_key = "MY_TEST_SECRET"
     secret_value = "my_secret_value"
     with patch.dict("os.environ", {secret_key: secret_value}):
         assert provider.get_secret(secret_key) == secret_value
+
 
 def test_get_secret_not_found():
     provider = EnvironmentSecretsProvider()

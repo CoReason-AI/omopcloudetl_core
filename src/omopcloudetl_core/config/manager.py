@@ -15,13 +15,29 @@ from omopcloudetl_core.config.models import ProjectConfig
 from omopcloudetl_core.exceptions import ConfigurationError
 from omopcloudetl_core.abstractions.secrets import EnvironmentSecretsProvider
 
+
 class ConfigManager:
+    """Manages the loading and validation of project configuration."""
+
     def load_project_config(self, config_path: Path) -> ProjectConfig:
+        """
+        Loads, validates, and resolves secrets for the project configuration.
+
+        Args:
+            config_path: The path to the project's YAML configuration file.
+
+        Returns:
+            A validated ProjectConfig object.
+
+        Raises:
+            ConfigurationError: If the configuration file is not found, invalid,
+                                or fails validation.
+        """
         if not config_path.is_file():
             raise ConfigurationError(f"Configuration file not found at: {config_path}")
 
         try:
-            with open(config_path, 'r') as f:
+            with open(config_path, "r") as f:
                 config_data = yaml.safe_load(f)
 
             if not isinstance(config_data, dict):

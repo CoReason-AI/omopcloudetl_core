@@ -12,15 +12,24 @@ from pydantic import BaseModel, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Optional, Dict, Any
 
+
 class SecretsConfig(BaseModel):
+    """Configuration for the secrets provider."""
+
     provider_type: str
     configuration: Dict[str, Any] = {}
 
+
 class OrchestratorConfig(BaseModel):
+    """Configuration for the orchestrator."""
+
     type: str
     configuration: Dict[str, Any] = {}
 
+
 class ConnectionConfig(BaseSettings):
+    """Configuration for the database connection."""
+
     provider_type: str
     host: Optional[str] = None
     user: Optional[str] = None
@@ -28,13 +37,12 @@ class ConnectionConfig(BaseSettings):
     password_secret_id: Optional[str] = None
     extra_settings: Dict[str, Any] = {}
 
-    model_config = SettingsConfigDict(
-        env_prefix='OMOPCLOUDETL_CONN_',
-        env_nested_delimiter='__',
-        case_sensitive=False
-    )
+    model_config = SettingsConfigDict(env_prefix="OMOPCLOUDETL_CONN_", env_nested_delimiter="__", case_sensitive=False)
+
 
 class ProjectConfig(BaseModel):
+    """The root configuration model for an omopcloudetl project."""
+
     connection: ConnectionConfig
     orchestrator: OrchestratorConfig
     schemas: Dict[str, str]
