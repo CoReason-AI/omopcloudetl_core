@@ -60,9 +60,7 @@ class ConfigManager:
         if config.secrets and config.connection.password_secret_id:
             if not config.connection.password:
                 secrets_provider = self._discovery.get_secrets_provider(config.secrets)
-                resolved_password = secrets_provider.get_secret(
-                    config.connection.password_secret_id
-                )
+                resolved_password = secrets_provider.get_secret(config.connection.password_secret_id)
                 config.connection.password = SecretStr(resolved_password)
 
         return config

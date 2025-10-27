@@ -94,7 +94,7 @@ def test_load_project_config_invalid_yaml(tmp_path: Path):
     Tests that a ConfigurationError is raised for a malformed YAML file.
     """
     config_file = tmp_path / "project.yml"
-    config_file.write_text("connection: { provider_type: 'duckdb'") # Malformed YAML
+    config_file.write_text("connection: { provider_type: 'duckdb'")  # Malformed YAML
     manager = ConfigManager()
     with pytest.raises(ConfigurationError, match="Error parsing YAML"):
         manager.load_project_config(config_file)

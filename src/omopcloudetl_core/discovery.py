@@ -29,4 +29,5 @@ class DiscoveryManager:
 
         # In the future, this will use entry points to discover other providers
         from .exceptions import DiscoveryError
+
         raise DiscoveryError(f"Secrets provider type '{config.provider_type}' not found.")

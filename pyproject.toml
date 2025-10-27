@@ -32,6 +32,7 @@ mkdocs-material = "^9.5.26"
 pytest-mock = "*"
 mypy = "*"
 requests-mock = "*"
+types-PyYAML = "*"
 
 [build-system]
 requires = ["poetry-core"]
