@@ -1,15 +1,18 @@
 import logging
 import sys
 import threading
+
 from colorama import Fore, Style, init
 
 # Initialize colorama
 init(autoreset=True)
 
+
 class ColorizedFormatter(logging.Formatter):
     """
     A custom logging formatter that adds color to log levels.
     """
+
     LOG_LEVEL_COLORS = {
         logging.DEBUG: Fore.CYAN,
         logging.INFO: Fore.GREEN,
@@ -24,8 +27,10 @@ class ColorizedFormatter(logging.Formatter):
         record.levelname = f"{color}{record.levelname}{Style.RESET_ALL}"
         return super().format(record)
 
-_loggers = {}
+
+_loggers: dict[str, logging.Logger] = {}
 _lock = threading.Lock()
+
 
 def get_logger(name: str, level: int = logging.INFO) -> logging.Logger:
     """
@@ -44,9 +49,7 @@ def get_logger(name: str, level: int = logging.INFO) -> logging.Logger:
 
         if not logger.handlers:
             handler = logging.StreamHandler(sys.stdout)
-            formatter = ColorizedFormatter(
-                '%(asctime)s - %(threadName)s - %(name)s - %(levelname)s - %(message)s'
-            )
+            formatter = ColorizedFormatter("%(asctime)s - %(threadName)s - %(name)s - %(levelname)s - %(message)s")
             handler.setFormatter(formatter)
             logger.addHandler(handler)
 

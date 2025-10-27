@@ -1,6 +1,5 @@
 import logging
 import unittest
-from unittest.mock import patch, MagicMock
 
 from colorama import Fore, Style
 
@@ -19,9 +18,7 @@ class TestLogging(unittest.TestCase):
     def test_colorized_formatter(self):
         """Test that the ColorizedFormatter adds color codes to log levels."""
         formatter = ColorizedFormatter("%(levelname)s - %(message)s")
-        record = logging.LogRecord(
-            "test", logging.INFO, "/path/to/test", 1, "Test message", (), None
-        )
+        record = logging.LogRecord("test", logging.INFO, "/path/to/test", 1, "Test message", (), None)
         record.levelname = "INFO"
         # The levelname should be wrapped in color codes
         formatted_message = formatter.format(record)
