@@ -129,3 +129,20 @@ def test_load_config_secret_resolution_fails(config_manager, tmp_path: Path):
 
     with pytest.raises(ConfigurationError, match="Failed to resolve secret"):
         config_manager.load_project_config(config_file)
+
+def test_load_config_unsupported_secret_provider(config_manager, tmp_path: Path):
+    """
+    Tests that a ConfigurationError is raised for an unsupported secret provider.
+    """
+    config_content = {
+        "connection": {"provider_type": "test_db", "password_secret_id": "some-secret"},
+        "orchestrator": {"type": "local"},
+        "schemas": {"source": "raw", "target": "cdm"},
+        "secrets": {"provider_type": "unsupported_provider"},
+    }
+    config_file = tmp_path / "config_with_unsupported_secret_provider.yml"
+    with open(config_file, "w") as f:
+        yaml.dump(config_content, f)
+
+    with pytest.raises(ConfigurationError, match="is not supported"):
+        config_manager.load_project_config(config_file)

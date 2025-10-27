@@ -14,7 +14,7 @@ import os
 
 class BaseSecretsProvider(ABC):
     @abstractmethod
-    def get_secret(self, secret_identifier: str) -> str:
+    def get_secret(self, secret_identifier: str) -> str:  # pragma: no cover
         pass
 
 

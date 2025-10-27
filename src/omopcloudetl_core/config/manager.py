@@ -66,9 +66,7 @@ class ConfigManager:
             if project_config.secrets.provider_type == "environment":
                 provider = EnvironmentSecretsProvider()
             else:
-                # In the future, we would raise a DiscoveryError here if the provider is unknown
-                # For now, we'll assume the environment provider for simplicity in this phase
-                provider = EnvironmentSecretsProvider()
+                raise ConfigurationError(f"Secrets provider '{project_config.secrets.provider_type}' is not supported.")
 
             try:
                 resolved_password = provider.get_secret(project_config.connection.password_secret_id)

@@ -8,26 +8,42 @@
 #
 # Source Code: https://github.com/CoReason-AI/omopcloudetl_core
 
-from .abstractions.secrets import BaseSecretsProvider, EnvironmentSecretsProvider
-from .config.models import SecretsConfig
+from importlib.metadata import entry_points
+from typing import Optional
+
+from omopcloudetl_core.abstractions.secrets import BaseSecretsProvider, EnvironmentSecretsProvider
+from omopcloudetl_core.config.models import SecretsConfig
+from omopcloudetl_core.exceptions import DiscoveryError
 
 
 class DiscoveryManager:
-    """
-    Manages the discovery and instantiation of pluggable components.
+    """Discovers and instantiates pluggable components."""
 
-    This is a placeholder implementation to allow other components to be tested.
-    """
-
-    def get_secrets_provider(self, config: SecretsConfig) -> BaseSecretsProvider:
+    def get_secrets_provider(self, config: Optional[SecretsConfig]) -> BaseSecretsProvider:
         """
         Gets a secrets provider based on the provided configuration.
+        Defaults to EnvironmentSecretsProvider if no config is provided.
         """
-        # This is a basic implementation that only supports the environment provider
-        if config.provider_type == "env":
+        if not config or config.provider_type == "environment":
             return EnvironmentSecretsProvider()
 
-        # In the future, this will use entry points to discover other providers
-        from .exceptions import DiscoveryError
+        # Placeholder for entry point discovery
+        discovered_providers = entry_points(group="omopcloudetl.secrets")
+        for entry_point in discovered_providers:
+            if entry_point.name == config.provider_type:
+                provider_class = entry_point.load()
+                return provider_class(**config.configuration)
 
-        raise DiscoveryError(f"Secrets provider type '{config.provider_type}' not found.")
+        raise DiscoveryError(f"Discovery failed: Secrets provider '{config.provider_type}' not found.")
+
+    def get_connection(self, config):  # pragma: no cover
+        """Gets a database connection provider."""
+        raise NotImplementedError
+
+    def get_orchestrator(self, config):  # pragma: no cover
+        """Gets an orchestrator."""
+        raise NotImplementedError
+
+    def get_generators(self, connection):  # pragma: no cover
+        """Gets DDL and SQL generators for a connection."""
+        raise NotImplementedError
