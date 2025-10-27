@@ -265,13 +265,24 @@ def test_get_generators_missing_attribute(discovery_manager):
 
     class NoGenConnection(BaseConnection):
         @property
-        def provider_type(self) -> str: return "no_gen"
+        def provider_type(self) -> str:
+            return "no_gen"
+
         @property
-        def scalability_tier(self): return None
-        def connect(self): pass
-        def close(self): pass
-        def execute_sql(self, sql, commit=True): pass
-        def bulk_load(self, source_uri, target_schema, target_table, source_format_options, load_options): pass
+        def scalability_tier(self):
+            return None
+
+        def connect(self):
+            pass
+
+        def close(self):
+            pass
+
+        def execute_sql(self, sql, commit=True):
+            pass
+
+        def bulk_load(self, source_uri, target_schema, target_table, source_format_options, load_options):
+            pass
 
     no_gen_conn = NoGenConnection(ConnectionConfig(provider_type="no_gen"))
     with pytest.raises(DiscoveryError, match="does not define SQL_GENERATOR_CLASS"):

@@ -27,6 +27,7 @@ class ExecutionResult(BaseModel):
 class BaseOrchestrator(ABC):
     """Abstract base class for all workflow orchestrators."""
 
+    # fmt: off
     @abstractmethod
     def execute_plan(self, plan: CompiledWorkflowPlan, dry_run: bool = False, resume: bool = False) -> ExecutionResult:  # pragma: no cover
         """
@@ -43,3 +44,4 @@ class BaseOrchestrator(ABC):
             A dictionary summarizing the execution result.
         """
         pass
+    # fmt: on

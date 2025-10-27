@@ -18,6 +18,7 @@ from omopcloudetl_core.specifications.models import CDMSpecification
 class BaseDDLGenerator(ABC):
     """Abstract base class for dialect-specific DDL generators."""
 
+    # fmt: off
     @abstractmethod
     def generate_ddl(self, specification: CDMSpecification, schema_name: str, options: Dict[str, Any]) -> List[str]:  # pragma: no cover
         """
@@ -32,11 +33,13 @@ class BaseDDLGenerator(ABC):
             A list of SQL DDL statements.
         """
         pass
+    # fmt: on
 
 
 class BaseSQLGenerator(ABC):
     """Abstract base class for dialect-specific SQL generators from DML definitions."""
 
+    # fmt: off
     @abstractmethod
     def generate_transform_sql(self, dml_definition: DMLDefinition, context: Dict[str, Any]) -> str:  # pragma: no cover
         """
@@ -50,3 +53,4 @@ class BaseSQLGenerator(ABC):
             A single, idempotent SQL statement (e.g., MERGE or a transactional block).
         """
         pass
+    # fmt: on

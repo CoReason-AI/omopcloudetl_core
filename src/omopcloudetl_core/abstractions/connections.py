@@ -49,6 +49,7 @@ class BaseConnection(ABC):
         """Return the scalability tier of the database platform."""
         pass
 
+    # fmt: off
     @abstractmethod
     def connect(self) -> None:  # pragma: no cover
         """
@@ -56,19 +57,23 @@ class BaseConnection(ABC):
         Implementations MUST use the tenacity library for connection retries.
         """
         pass
+    # fmt: on
 
     @abstractmethod
     def close(self) -> None:  # pragma: no cover
         """Closes the database connection."""
         pass
 
+    # fmt: off
     @abstractmethod
     def execute_sql(self, sql: str, commit: bool = True) -> ExecutionMetrics:  # pragma: no cover
         """
         Executes a SQL statement and returns structured execution metrics.
         """
         pass
+    # fmt: on
 
+    # fmt: off
     @abstractmethod
     def bulk_load(
         self,
@@ -93,3 +98,4 @@ class BaseConnection(ABC):
             Structured load metrics.
         """
         pass
+    # fmt: on
