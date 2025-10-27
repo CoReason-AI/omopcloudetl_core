@@ -8,48 +8,65 @@
 #
 # Source Code: https://github.com/CoReason-AI/omopcloudetl_core
 
-
-from pydantic import BaseModel, Field, SecretStr, model_validator
+from pydantic import BaseModel, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import Any, Dict, Optional
+from typing import Optional, Dict, Any
+
+from omopcloudetl_core.exceptions import ConfigurationError
 
 
 class SecretsConfig(BaseModel):
+    """Configuration for the secrets provider."""
     provider_type: str
-    configuration: Dict[str, Any] = Field(default_factory=dict)
+    configuration: Dict[str, Any] = {}
 
 
 class OrchestratorConfig(BaseModel):
+    """Configuration for the orchestrator."""
     type: str
-    configuration: Dict[str, Any] = Field(default_factory=dict)
+    configuration: Dict[str, Any] = {}
 
 
 class ConnectionConfig(BaseSettings):
+    """Configuration for the database connection."""
     provider_type: str
     host: Optional[str] = None
     user: Optional[str] = None
+    # Password can be set via env var, direct value, or secret_id lookup
     password: Optional[SecretStr] = None
     password_secret_id: Optional[str] = None
-    extra_settings: Dict[str, Any] = Field(default_factory=dict)
+    extra_settings: Dict[str, Any] = {}
 
-    model_config = SettingsConfigDict(env_prefix="OMOPCLOUDETL_CONN_", env_nested_delimiter="__", case_sensitive=False)
+    model_config = SettingsConfigDict(
+        # HLD Mandate: Global Renaming (Ecosystem Name)
+        env_prefix='OMOPCLOUDETL_CONN_',
+        env_nested_delimiter='__',
+        case_sensitive=False
+    )
+    # Note: Full password resolution validation will happen in the ConfigManager
+    # after the secrets provider has been initialized.
 
 
 class ProjectConfig(BaseModel):
+    """The root configuration model for an omopcloudetl project."""
     connection: ConnectionConfig
     orchestrator: OrchestratorConfig
     schemas: Dict[str, str]
     secrets: Optional[SecretsConfig] = None
 
-    @model_validator(mode="after")
-    def check_secret_id_requires_secrets_config(self) -> "ProjectConfig":
+    @model_validator(mode='after')
+    def check_secrets_configured_for_secret_id(self) -> 'ProjectConfig':
         """
-        Validate that if a secret ID is used for the password, a secrets provider
-        is also configured.
+        Validate that if a secret ID is used for the password and no direct
+        password is provided, a secrets provider must also be configured.
         """
-        if self.connection.password_secret_id and not self.connection.password and not self.secrets:
-            raise ValueError(
-                "A 'password_secret_id' was provided for the connection without a password, "
-                "but no 'secrets' provider configuration was found in the project file."
+        if (
+            self.connection.password_secret_id and
+            not self.connection.password and
+            not self.secrets
+        ):
+            raise ConfigurationError(
+                "A secrets provider must be configured in 'secrets' when "
+                "'connection.password_secret_id' is used without a direct 'password'."
             )
         return self

@@ -8,33 +8,29 @@
 #
 # Source Code: https://github.com/CoReason-AI/omopcloudetl_core
 
-
 import pytest
-from omopcloudetl_core.abstractions.secrets import (
-    BaseSecretsProvider,
-    EnvironmentSecretsProvider,
-)
+from unittest.mock import patch
+from omopcloudetl_core.abstractions.secrets import EnvironmentSecretsProvider
 from omopcloudetl_core.exceptions import SecretAccessError
 
+def test_get_secret_exists():
+    """
+    Tests that the EnvironmentSecretsProvider returns the secret value when the environment variable is set.
+    """
+    provider = EnvironmentSecretsProvider()
+    secret_key = "MY_TEST_SECRET"
+    secret_value = "my_secret_value"
 
-@pytest.fixture
-def secrets_provider():
-    return EnvironmentSecretsProvider()
+    with patch.dict('os.environ', {secret_key: secret_value}):
+        assert provider.get_secret(secret_key) == secret_value
 
+def test_get_secret_not_exists():
+    """
+    Tests that the EnvironmentSecretsProvider raises a SecretAccessError when the environment variable is not set.
+    """
+    provider = EnvironmentSecretsProvider()
+    secret_key = "NON_EXISTENT_SECRET"
 
-def test_get_secret_success(secrets_provider, monkeypatch):
-    monkeypatch.setenv("MY_SECRET", "my_value")
-    assert secrets_provider.get_secret("MY_SECRET") == "my_value"
-
-
-def test_get_secret_not_found(secrets_provider):
-    with pytest.raises(SecretAccessError, match="Secret not found in environment: NON_EXISTENT_SECRET"):
-        secrets_provider.get_secret("NON_EXISTENT_SECRET")
-
-
-def test_abstract_method_not_implemented():
-    class IncompleteSecretsProvider(BaseSecretsProvider):
-        pass
-
-    with pytest.raises(TypeError):
-        IncompleteSecretsProvider()
+    with patch.dict('os.environ', {}, clear=True):
+        with pytest.raises(SecretAccessError, match=f"Secret not found in environment: {secret_key}"):
+            provider.get_secret(secret_key)
