@@ -8,25 +8,20 @@
 #
 # Source Code: https://github.com/CoReason-AI/omopcloudetl_core
 
+from pydantic import BaseModel
 from typing import Optional
 
-from pydantic import BaseModel
-
-
 class LoadMetrics(BaseModel):
-    """Metrics for bulk load operations (e.g., COPY INTO)."""
-
+    """Metrics for bulk load operations (COPY INTO, etc.)."""
     rows_processed: Optional[int] = None
     rows_inserted: int
     rows_rejected: int
-    error_details_uri: Optional[str] = None  # Link to a file with rejected records
+    error_details_uri: Optional[str] = None # Link to rejected records
     query_id: Optional[str] = None
 
-
 class ExecutionMetrics(BaseModel):
-    """Metrics for DML/SQL execution (e.g., MERGE, INSERT, DDL)."""
-
-    rows_affected: Optional[int] = None  # Total rows inserted, updated, or deleted
+    """Metrics for DML/SQL execution (MERGE, INSERT, DDL)."""
+    rows_affected: Optional[int] = None # Inserted + Updated + Deleted
     rows_inserted: Optional[int] = None
     rows_updated: Optional[int] = None
     rows_deleted: Optional[int] = None
