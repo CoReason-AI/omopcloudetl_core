@@ -8,6 +8,7 @@
 #
 # Source Code: https://github.com/CoReason-AI/omopcloudetl_core
 
+
 from pydantic import BaseModel
 from typing import Optional
 
