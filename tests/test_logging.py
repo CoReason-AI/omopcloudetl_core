@@ -25,9 +25,7 @@ def log_capture():
     # but requires pytest configuration. This avoids that for simplicity.
     stream = StringIO()
     handler = logging.StreamHandler(stream)
-    formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - [%(threadName)s] - %(levelname)s - %(message)s"
-    )
+    formatter = logging.Formatter("%(asctime)s - %(name)s - [%(threadName)s] - %(levelname)s - %(message)s")
     handler.setFormatter(formatter)
     return stream, handler
 
@@ -49,18 +47,14 @@ def test_color_formatter_adds_color_codes():
     formatter = logger.handlers[0].formatter
 
     # Test INFO level
-    info_record = logging.LogRecord(
-        "test", logging.INFO, "/path", 1, "Info message", (), None
-    )
+    info_record = logging.LogRecord("test", logging.INFO, "/path", 1, "Info message", (), None)
     formatted_info = formatter.format(info_record)
     assert formatted_info.startswith(Fore.GREEN)
     assert "Info message" in formatted_info
     assert formatted_info.endswith(Style.RESET_ALL)
 
     # Test ERROR level
-    error_record = logging.LogRecord(
-        "test", logging.ERROR, "/path", 1, "Error message", (), None
-    )
+    error_record = logging.LogRecord("test", logging.ERROR, "/path", 1, "Error message", (), None)
     formatted_error = formatter.format(error_record)
     assert formatted_error.startswith(Fore.RED)
     assert "Error message" in formatted_error

@@ -33,7 +33,9 @@ def spec_manager(tmp_path: Path) -> SpecificationManager:
     return SpecificationManager(cache_dir=cache_dir)
 
 
-def test_fetch_specification_from_remote_success(spec_manager: SpecificationManager, requests_mock: requests_mock.Mocker):
+def test_fetch_specification_from_remote_success(
+    spec_manager: SpecificationManager, requests_mock: requests_mock.Mocker
+):
     """Test successful fetching and parsing of a specification from a remote URL."""
     version = "5.4"
     spec_url = f"{OHDSI_REPO_URL}/OMOP_CDM_v{version}_Field_Level.csv"

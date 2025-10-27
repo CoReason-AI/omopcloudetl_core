@@ -8,8 +8,8 @@
 #
 # Source Code: https://github.com/CoReason-AI/omopcloudetl_core
 
-from importlib.metadata import entry_points
-from typing import Dict, Tuple, Type
+from importlib.metadata import EntryPoint, entry_points
+from typing import Dict, Iterable, Optional, Tuple, Type
 
 from omopcloudetl_core.abstractions.connections import BaseConnection
 from omopcloudetl_core.abstractions.generators import BaseDDLGenerator, BaseSQLGenerator
@@ -29,19 +29,19 @@ from omopcloudetl_core.exceptions import DiscoveryError
 class DiscoveryManager:
     """Manages the discovery and instantiation of pluggable components."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._secrets_providers: Dict[str, Type[BaseSecretsProvider]] = {}
         self._connections: Dict[str, Type[BaseConnection]] = {}
         self._orchestrators: Dict[str, Type[BaseOrchestrator]] = {}
 
     def _discover_components(self, entry_point_group: str) -> Dict[str, Type]:
         """Generic discovery method for a given entry point group."""
-        discovered_components = {}
+        discovered_components: Dict[str, Type] = {}
         try:
             # Use importlib.metadata to find installed plugins
             eps = entry_points()
-            group_eps = []
-            if hasattr(eps, 'select'):  # New API in Python 3.10+
+            group_eps: Iterable[EntryPoint] = []
+            if hasattr(eps, "select"):  # New API in Python 3.10+
                 group_eps = eps.select(group=entry_point_group)
             elif isinstance(eps, dict):  # Deprecated dict-based API
                 group_eps = eps.get(entry_point_group, [])
@@ -54,7 +54,7 @@ class DiscoveryManager:
             raise DiscoveryError(f"Failed to discover or load components from group '{entry_point_group}'") from e
         return discovered_components
 
-    def get_secrets_provider(self, config: SecretsConfig = None) -> BaseSecretsProvider:
+    def get_secrets_provider(self, config: Optional[SecretsConfig] = None) -> BaseSecretsProvider:
         """Discovers and instantiates a secrets provider."""
         if not config:
             return EnvironmentSecretsProvider()

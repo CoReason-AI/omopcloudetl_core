@@ -30,7 +30,7 @@ OHDSI_REPO_URL = "https://raw.githubusercontent.com/OHDSI/CommonDataModel/master
 class SpecificationManager:
     """Manages the fetching, parsing, and caching of OMOP CDM specifications."""
 
-    def __init__(self, cache_dir: Path = None):
+    def __init__(self, cache_dir: Optional[Path] = None):
         if cache_dir is None:
             cache_dir = Path.home() / ".omopcloudetl_core" / "cache"
         self.cache = diskcache.Cache(str(cache_dir))
@@ -61,7 +61,7 @@ class SpecificationManager:
             # We handle them gracefully.
             field = CDMFieldSpec(
                 name=row["cdmFieldName"].lower(),
-                type=row.get("cdmDatatype", "VARCHAR(MAX)"), # Default type if missing
+                type=row.get("cdmDatatype", "VARCHAR(MAX)"),  # Default type if missing
                 required=row.get("isRequired", "No").lower() == "yes",
                 description=row.get("cdmFieldName"),
             )
@@ -101,6 +101,7 @@ class SpecificationManager:
         else:
             spec_url = f"{OHDSI_REPO_URL}/OMOP_CDM_v{version}_Field_Level.csv"
             from tenacity import RetryError
+
             try:
                 csv_content = self._fetch_url_content(spec_url)
             except RetryError as e:

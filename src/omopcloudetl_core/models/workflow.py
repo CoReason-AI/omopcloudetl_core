@@ -8,7 +8,7 @@
 #
 # Source Code: https://github.com/CoReason-AI/omopcloudetl_core
 
-from typing import Annotated, Any, Dict, List, Literal, Union
+from typing import Annotated, Any, Dict, List, Literal, Sequence, Union
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
@@ -95,9 +95,7 @@ class CompiledBulkLoadStep(CompiledBaseStep):
     load_options: Dict[str, Any]
 
 
-CompiledStep = Annotated[
-    Union[CompiledSQLStep, CompiledBulkLoadStep], Field(discriminator="type")
-]
+CompiledStep = Annotated[Union[CompiledSQLStep, CompiledBulkLoadStep], Field(discriminator="type")]
 
 
 class CompiledWorkflowPlan(BaseModel):
@@ -109,5 +107,5 @@ class CompiledWorkflowPlan(BaseModel):
     execution_id: UUID = Field(default_factory=uuid4)
     workflow_name: str
     concurrency: int
-    steps: List[CompiledStep]
+    steps: Sequence[CompiledStep]
     context_snapshot: Dict[str, Any]

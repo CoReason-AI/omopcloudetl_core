@@ -8,10 +8,8 @@
 #
 # Source Code: https://github.com/CoReason-AI/omopcloudetl_core
 
-import os
 
 import pytest
-from pydantic import ValidationError
 from omopcloudetl_core.config.models import (
     ConnectionConfig,
     ProjectConfig,

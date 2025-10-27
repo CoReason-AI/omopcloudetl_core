@@ -9,7 +9,7 @@
 # Source Code: https://github.com/CoReason-AI/omopcloudetl_core
 
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 import yaml

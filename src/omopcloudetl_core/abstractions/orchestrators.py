@@ -28,9 +28,7 @@ class BaseOrchestrator(ABC):
     """Abstract base class for all workflow orchestrators."""
 
     @abstractmethod
-    def execute_plan(
-        self, plan: CompiledWorkflowPlan, dry_run: bool = False, resume: bool = False
-    ) -> ExecutionResult:
+    def execute_plan(self, plan: CompiledWorkflowPlan, dry_run: bool = False, resume: bool = False) -> ExecutionResult:
         """
         Executes a compiled workflow plan.
 

@@ -61,11 +61,7 @@ class ProjectConfig(BaseModel):
         Validate that if a password_secret_id is provided, a secrets provider
         is also configured.
         """
-        if (
-            self.connection.password_secret_id is not None
-            and self.connection.password is None
-            and self.secrets is None
-        ):
+        if self.connection.password_secret_id is not None and self.connection.password is None and self.secrets is None:
             raise ConfigurationError(
                 "A 'secrets' provider must be configured when 'connection.password_secret_id' is used."
             )

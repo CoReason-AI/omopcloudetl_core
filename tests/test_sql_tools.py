@@ -41,7 +41,7 @@ def test_apply_query_tag():
     tagged_sql = apply_query_tag(sql, context)
 
     # Extract the JSON part for validation
-    comment = tagged_sql.split('\n')[0]
+    comment = tagged_sql.split("\n")[0]
     assert comment.startswith("/* OmopCloudEtlContext:")
     assert comment.endswith("*/")
 

@@ -17,6 +17,7 @@ from omopcloudetl_core.models.metrics import ExecutionMetrics, LoadMetrics
 if TYPE_CHECKING:
     # Use forward references to avoid circular imports at runtime
     from omopcloudetl_core.abstractions.generators import BaseDDLGenerator, BaseSQLGenerator
+    from omopcloudetl_core.config.models import ConnectionConfig
 
 
 class ScalabilityTier(Enum):
@@ -32,6 +33,9 @@ class BaseConnection(ABC):
     # Concrete implementations of this class MUST define these class attributes
     SQL_GENERATOR_CLASS: Type["BaseSQLGenerator"]
     DDL_GENERATOR_CLASS: Type["BaseDDLGenerator"]
+
+    def __init__(self, config: "ConnectionConfig"):
+        self.config = config
 
     @property
     @abstractmethod

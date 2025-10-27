@@ -19,9 +19,7 @@ class BaseDDLGenerator(ABC):
     """Abstract base class for dialect-specific DDL generators."""
 
     @abstractmethod
-    def generate_ddl(
-        self, specification: CDMSpecification, schema_name: str, options: Dict[str, Any]
-    ) -> List[str]:
+    def generate_ddl(self, specification: CDMSpecification, schema_name: str, options: Dict[str, Any]) -> List[str]:
         """
         Generates a list of DDL statements for a given CDM specification.
 
@@ -41,9 +39,7 @@ class BaseSQLGenerator(ABC):
     """Abstract base class for dialect-specific SQL generators from DML definitions."""
 
     @abstractmethod
-    def generate_transform_sql(
-        self, dml_definition: DMLDefinition, context: Dict[str, Any]
-    ) -> str:
+    def generate_transform_sql(self, dml_definition: DMLDefinition, context: Dict[str, Any]) -> str:
         """
         Generates an idempotent SQL transformation statement from a DML definition.
 

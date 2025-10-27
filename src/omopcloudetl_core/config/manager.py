@@ -9,6 +9,7 @@
 # Source Code: https://github.com/CoReason-AI/omopcloudetl_core
 
 from pathlib import Path
+from typing import Optional
 
 import yaml
 from pydantic import ValidationError
@@ -21,7 +22,7 @@ from omopcloudetl_core.exceptions import ConfigurationError
 class ConfigManager:
     """Manages loading and validation of the project configuration."""
 
-    def __init__(self, discovery_manager: DiscoveryManager = None):
+    def __init__(self, discovery_manager: Optional[DiscoveryManager] = None):
         self._discovery = discovery_manager or DiscoveryManager()
 
     def load_project_config(self, config_path: Path) -> ProjectConfig:
@@ -56,14 +57,9 @@ class ConfigManager:
             raise ConfigurationError(f"Configuration validation failed: {e}") from e
 
         # Secret Resolution Logic
-        if (
-            config.connection.password_secret_id
-            and config.connection.password is None
-        ):
+        if config.connection.password_secret_id and config.connection.password is None:
             secrets_provider = self._discovery.get_secrets_provider(config.secrets)
-            resolved_password = secrets_provider.get_secret(
-                config.connection.password_secret_id
-            )
+            resolved_password = secrets_provider.get_secret(config.connection.password_secret_id)
             # Pydantic models are immutable by default, so we create a copy with the updated value.
             # We must handle the nested structure.
             connection_dict = config.connection.model_dump()

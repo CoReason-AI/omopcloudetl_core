@@ -9,8 +9,7 @@
 # Source Code: https://github.com/CoReason-AI/omopcloudetl_core
 
 from importlib.abc import Traversable
-from pathlib import Path
-from typing import Any, Dict
+from typing import List
 from uuid import uuid4
 
 import networkx as nx
@@ -23,6 +22,7 @@ from omopcloudetl_core.models.workflow import (
     BulkLoadWorkflowStep,
     CompiledBulkLoadStep,
     CompiledSQLStep,
+    CompiledStep,
     CompiledWorkflowPlan,
     DDLWorkflowStep,
     DMLWorkflowStep,
@@ -63,9 +63,7 @@ class WorkflowCompiler:
             cycles = list(nx.simple_cycles(graph))
             raise WorkflowError(f"Workflow contains cycles: {cycles}")
 
-    def compile(
-        self, workflow_config: WorkflowConfig, workflow_base_path: Traversable
-    ) -> CompiledWorkflowPlan:
+    def compile(self, workflow_config: WorkflowConfig, workflow_base_path: Traversable) -> CompiledWorkflowPlan:
         """
         Compiles the workflow configuration into an executable plan.
 
@@ -80,7 +78,7 @@ class WorkflowCompiler:
         self._validate_dag(workflow_config)
         execution_id = uuid4()
         context = {"schemas": self.project_config.schemas}
-        compiled_steps = []
+        compiled_steps: List[CompiledStep] = []
 
         for step in workflow_config.steps:
             query_context = {

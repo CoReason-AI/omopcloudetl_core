@@ -26,7 +26,13 @@ from omopcloudetl_core.models.workflow import (
 WORKFLOW_DICT = {
     "workflow_name": "test_workflow",
     "steps": [
-        {"name": "load_data", "type": "bulk_load", "source_uri_pattern": "/path/to/data", "target_table": "my_table", "target_schema_ref": "target"},
+        {
+            "name": "load_data",
+            "type": "bulk_load",
+            "source_uri_pattern": "/path/to/data",
+            "target_table": "my_table",
+            "target_schema_ref": "target",
+        },
         {"name": "transform", "type": "dml", "dml_file": "transform.yml", "depends_on": ["load_data"]},
         {"name": "generate_ddl", "type": "ddl", "cdm_version": "5.4", "target_schema_ref": "cdm", "depends_on": []},
         {"name": "custom_sql", "type": "sql", "sql_file": "custom.sql", "depends_on": ["transform"]},
@@ -59,7 +65,9 @@ def compiler(mock_dependencies):
 def workflow_base_path(tmp_path: Path) -> Path:
     """Fixture to create a temporary directory with mock workflow files."""
     dml_path = tmp_path / "transform.yml"
-    dml_path.write_text("target_table: person\ntarget_schema_ref: cdm\nidempotency_keys: [person_id]\nprimary_source: {table: stg, alias: s, schema_ref: src}\nmappings: []")
+    dml_path.write_text(
+        "target_table: person\ntarget_schema_ref: cdm\nidempotency_keys: [person_id]\nprimary_source: {table: stg, alias: s, schema_ref: src}\nmappings: []"
+    )
 
     sql_path = tmp_path / "custom.sql"
     sql_path.write_text("SELECT 1;")

@@ -24,7 +24,6 @@ from omopcloudetl_core.config.models import (
     SecretsConfig,
 )
 from omopcloudetl_core.discovery import DiscoveryManager
-from omopcloudetl_core.exceptions import DiscoveryError
 
 
 # Mock provider classes for testing
@@ -51,15 +50,24 @@ class MockConnection(BaseConnection):
         self._config = config
 
     @property
-    def provider_type(self) -> str: return "mock_conn"
+    def provider_type(self) -> str:
+        return "mock_conn"
 
     @property
-    def scalability_tier(self): return None
+    def scalability_tier(self):
+        return None
 
-    def connect(self): pass
-    def close(self): pass
-    def execute_sql(self, sql, commit=True): pass
-    def bulk_load(self, source_uri, target_schema, target_table, source_format_options, load_options): pass
+    def connect(self):
+        pass
+
+    def close(self):
+        pass
+
+    def execute_sql(self, sql, commit=True):
+        pass
+
+    def bulk_load(self, source_uri, target_schema, target_table, source_format_options, load_options):
+        pass
 
 
 class MockOrchestrator(BaseOrchestrator):

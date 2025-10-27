@@ -62,4 +62,4 @@ def split_sql_script(sql_script: str) -> List[str]:
     statements = sqlparse.split(formatted_script)
 
     # Filter out empty statements (e.g., just ';')
-    return [stmt.strip() for stmt in statements if stmt.strip() and stmt.strip() != ';']
+    return [stmt.strip() for stmt in statements if stmt.strip() and stmt.strip() != ";"]

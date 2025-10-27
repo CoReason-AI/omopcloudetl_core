@@ -33,7 +33,11 @@ VALID_DML_DICT = {
     "where_clause": "p.is_active = true",
     "mappings": [
         {"type": "direct", "target_field": "person_id", "source_field": "p.patient_id"},
-        {"type": "expression", "target_field": "gender_concept_id", "sql": "CASE p.gender WHEN 'M' THEN 8507 ELSE 8532 END"},
+        {
+            "type": "expression",
+            "target_field": "gender_concept_id",
+            "sql": "CASE p.gender WHEN 'M' THEN 8507 ELSE 8532 END",
+        },
         {"type": "constant", "target_field": "year_of_birth", "value": 1990},
         {"type": "direct", "target_field": "race_source_value", "source_field": "pd.race"},
     ],
