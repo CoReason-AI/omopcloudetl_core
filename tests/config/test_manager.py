@@ -147,3 +147,88 @@ def test_load_config_unsupported_secret_provider(config_manager, tmp_path: Path)
 
     with pytest.raises(ConfigurationError, match="is not supported"):
         config_manager.load_project_config(config_file)
+
+
+def test_load_config_valid_yaml_not_dict(config_manager, tmp_path: Path):
+    """
+    Tests that a ConfigurationError is raised if the YAML is valid but not a dictionary.
+    """
+    config_file = tmp_path / "not_a_dict.yml"
+    config_file.write_text("- item1\n- item2")  # A list, not a dictionary
+    with pytest.raises(ConfigurationError, match="Configuration validation failed"):
+        config_manager.load_project_config(config_file)
+
+
+def test_load_config_prefers_direct_password_over_secret(config_manager, tmp_path: Path, mocker):
+    """
+    Tests that a direct password in the config is used even if a secret_id is also present.
+    """
+    direct_password = "direct_password"
+    secret_key = "DB_PASSWORD_SECRET"
+    secret_value = "supersecretpassword"
+
+    config_content = {
+        "connection": {
+            "provider_type": "test_db",
+            "password": direct_password,
+            "password_secret_id": secret_key,
+        },
+        "orchestrator": {"type": "local"},
+        "schemas": {"source": "raw", "target": "cdm"},
+        "secrets": {"provider_type": "environment"},
+    }
+    config_file = tmp_path / "config_with_both_passwords.yml"
+    with open(config_file, "w") as f:
+        yaml.dump(config_content, f)
+
+    # Mock the secrets provider to ensure it's not called
+    mock_get_secret = mocker.patch("omopcloudetl_core.abstractions.secrets.EnvironmentSecretsProvider.get_secret")
+
+    with patch.dict("os.environ", {secret_key: secret_value}):
+        project_config = config_manager.load_project_config(config_file)
+
+    assert project_config.connection.password is not None
+    assert project_config.connection.password.get_secret_value() == direct_password
+    mock_get_secret.assert_not_called()
+
+
+def test_load_config_with_secrets_block_but_no_secret_id(config_manager, tmp_path: Path, mocker):
+    """
+    Tests that secret resolution is not triggered if a secrets block is present
+    but the connection has no password_secret_id.
+    """
+    config_content = {
+        "connection": {"provider_type": "test_db"},  # No password or secret_id
+        "orchestrator": {"type": "local"},
+        "schemas": {"source": "raw", "target": "cdm"},
+        "secrets": {"provider_type": "environment"},
+    }
+    config_file = tmp_path / "config.yml"
+    with open(config_file, "w") as f:
+        yaml.dump(config_content, f)
+
+    mock_get_secret = mocker.patch("omopcloudetl_core.abstractions.secrets.EnvironmentSecretsProvider.get_secret")
+
+    project_config = config_manager.load_project_config(config_file)
+
+    assert project_config.connection.password is None
+    mock_get_secret.assert_not_called()
+
+
+def test_load_config_secret_id_without_secrets_block(config_manager, tmp_path: Path):
+    """
+    Tests that a ConfigurationError is raised if password_secret_id is provided
+    without a secrets configuration block.
+    """
+    config_content = {
+        "connection": {"provider_type": "test_db", "password_secret_id": "some-secret"},
+        "orchestrator": {"type": "local"},
+        "schemas": {"source": "raw", "target": "cdm"},
+        # No 'secrets' block
+    }
+    config_file = tmp_path / "config.yml"
+    with open(config_file, "w") as f:
+        yaml.dump(config_content, f)
+
+    with pytest.raises(ConfigurationError, match="Configuration validation failed"):
+        config_manager.load_project_config(config_file)

@@ -48,7 +48,7 @@ class ConfigManager:
 
         try:
             project_config = ProjectConfig(**config_data)
-        except (ValidationError, ConfigurationError) as e:
+        except (ValidationError, ConfigurationError, TypeError) as e:
             raise ConfigurationError(f"Configuration validation failed: {e}") from e
 
         # Resolve secrets. In a future phase, this will use the DiscoveryManager
