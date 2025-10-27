@@ -33,14 +33,12 @@ class CompiledBulkLoadStep(CompiledBaseStep):
     load_options: Dict
 
 
-CompiledStep = Annotated[
-    Union[CompiledSQLStep, CompiledBulkLoadStep],
-    Field(discriminator="type")
-]
+CompiledStep = Annotated[Union[CompiledSQLStep, CompiledBulkLoadStep], Field(discriminator="type")]
 
 
 class CompiledWorkflowPlan(BaseModel):
     """A placeholder implementation of the compiled workflow plan."""
+
     execution_id: UUID
     workflow_name: str
     concurrency: int
