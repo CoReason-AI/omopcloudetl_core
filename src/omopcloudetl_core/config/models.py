@@ -8,31 +8,19 @@
 #
 # Source Code: https://github.com/CoReason-AI/omopcloudetl_core
 
-from typing import Any, Dict, Optional
-
-from pydantic import BaseModel, SecretStr, model_validator
+from pydantic import BaseModel, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
-from omopcloudetl_core.exceptions import ConfigurationError
-
+from typing import Optional, Dict, Any
 
 class SecretsConfig(BaseModel):
-    """Configuration for the secrets provider."""
-
     provider_type: str
     configuration: Dict[str, Any] = {}
 
-
 class OrchestratorConfig(BaseModel):
-    """Configuration for the orchestrator."""
-
     type: str
     configuration: Dict[str, Any] = {}
 
-
 class ConnectionConfig(BaseSettings):
-    """Configuration for the database connection, supporting environment variable overrides."""
-
     provider_type: str
     host: Optional[str] = None
     user: Optional[str] = None
@@ -41,28 +29,13 @@ class ConnectionConfig(BaseSettings):
     extra_settings: Dict[str, Any] = {}
 
     model_config = SettingsConfigDict(
-        env_prefix="OMOPCLOUDETL_CONN_",
-        env_nested_delimiter="__",
-        case_sensitive=False,
+        env_prefix='OMOPCLOUDETL_CONN_',
+        env_nested_delimiter='__',
+        case_sensitive=False
     )
 
-
 class ProjectConfig(BaseModel):
-    """The root configuration model for an omopcloudetl project."""
-
     connection: ConnectionConfig
     orchestrator: OrchestratorConfig
     schemas: Dict[str, str]
     secrets: Optional[SecretsConfig] = None
-
-    @model_validator(mode="after")
-    def check_secrets_provider_for_password_secret(self) -> "ProjectConfig":
-        """
-        Validate that if a password_secret_id is provided, a secrets provider
-        is also configured.
-        """
-        if self.connection.password_secret_id is not None and self.connection.password is None and self.secrets is None:
-            raise ConfigurationError(
-                "A 'secrets' provider must be configured when 'connection.password_secret_id' is used."
-            )
-        return self

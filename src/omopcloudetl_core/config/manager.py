@@ -9,66 +9,34 @@
 # Source Code: https://github.com/CoReason-AI/omopcloudetl_core
 
 from pathlib import Path
-from typing import Optional
-
 import yaml
-from pydantic import ValidationError
-
+from pydantic import ValidationError, SecretStr
 from omopcloudetl_core.config.models import ProjectConfig
-from omopcloudetl_core.discovery import DiscoveryManager
 from omopcloudetl_core.exceptions import ConfigurationError
-
+from omopcloudetl_core.abstractions.secrets import EnvironmentSecretsProvider
 
 class ConfigManager:
-    """Manages loading and validation of the project configuration."""
-
-    def __init__(self, discovery_manager: Optional[DiscoveryManager] = None):
-        self._discovery = discovery_manager or DiscoveryManager()
-
     def load_project_config(self, config_path: Path) -> ProjectConfig:
-        """
-        Loads the project configuration from a YAML file, validates it,
-        and resolves any secrets.
-
-        Args:
-            config_path: The path to the project configuration YAML file.
-
-        Returns:
-            A validated ProjectConfig object.
-
-        Raises:
-            ConfigurationError: If the file cannot be read, is not valid YAML,
-                                or fails Pydantic validation.
-        """
-        try:
-            with open(config_path, "r") as f:
-                config_data = yaml.safe_load(f)
-        except FileNotFoundError:
+        if not config_path.is_file():
             raise ConfigurationError(f"Configuration file not found at: {config_path}")
-        except yaml.YAMLError as e:
-            raise ConfigurationError(f"Invalid YAML in configuration file: {config_path}") from e
-
-        if not isinstance(config_data, dict):
-            raise ConfigurationError("The root of the configuration file must be a dictionary.")
 
         try:
+            with open(config_path, 'r') as f:
+                config_data = yaml.safe_load(f)
+
+            if not isinstance(config_data, dict):
+                raise TypeError("Configuration content is not a valid dictionary.")
+
             config = ProjectConfig.model_validate(config_data)
-        except ValidationError as e:
-            raise ConfigurationError(f"Configuration validation failed: {e}") from e
+        except (yaml.YAMLError, ValidationError, TypeError) as e:
+            raise ConfigurationError(f"Failed to load or validate configuration: {e}") from e
 
         # Secret Resolution Logic
-        if config.connection.password_secret_id and config.connection.password is None:
-            secrets_provider = self._discovery.get_secrets_provider(config.secrets)
+        if config.connection.password_secret_id and not config.connection.password:
+            # For now, defaulting to EnvironmentSecretsProvider as per spec phase
+            # DiscoveryManager will be used in a later phase
+            secrets_provider = EnvironmentSecretsProvider()
             resolved_password = secrets_provider.get_secret(config.connection.password_secret_id)
-            # Pydantic models are immutable by default, so we create a copy with the updated value.
-            # We must handle the nested structure.
-            connection_dict = config.connection.model_dump()
-            connection_dict["password"] = resolved_password
-
-            config_dict = config.model_dump()
-            config_dict["connection"] = connection_dict
-
-            # Re-validate the model with the resolved password
-            config = ProjectConfig.model_validate(config_dict)
+            config.connection.password = SecretStr(resolved_password)
 
         return config
