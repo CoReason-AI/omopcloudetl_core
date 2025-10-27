@@ -1,4 +1,3 @@
-import os
 import pytest
 from omopcloudetl_core.abstractions.secrets import EnvironmentSecretsProvider
 from omopcloudetl_core.exceptions import SecretAccessError
