@@ -18,9 +18,9 @@ from omopcloudetl_core.specifications.manager import SpecificationManager, OHDSI
 from omopcloudetl_core.exceptions import SpecificationError
 
 VALID_CDM_CSV = (
-    "cdmTableName,cdmFieldName,isPrimaryKey,isRequired,cdmDatatype\n"
-    "PERSON,PERSON_ID,Yes,Yes,BIGINT\n"
-    "PERSON,GENDER_CONCEPT_ID,No,Yes,INTEGER"
+    "cdmTableName,cdmFieldName,isPrimaryKey,isRequired,cdmDatatype,description\n"
+    "PERSON,PERSON_ID,Yes,Yes,BIGINT,A unique identifier for each person.\n"
+    "PERSON,GENDER_CONCEPT_ID,No,Yes,INTEGER,A foreign key to the GENDER concept in the Standardized Vocabularies."
 )
 
 
@@ -51,6 +51,19 @@ def test_fetch_specification_from_remote_success(spec_manager, requests_mock):
     assert "person" in spec.tables
     assert spec.tables["person"].fields[0].name == "person_id"
     assert spec.tables["person"].primary_key == ["person_id"]
+    assert spec.tables["person"].fields[0].description == "A unique identifier for each person."
+
+
+def test_parse_cdm_csv_parses_description(spec_manager):
+    """Tests that the parser correctly extracts the description field."""
+    tables = spec_manager._parse_cdm_csv(VALID_CDM_CSV)
+    assert "person" in tables
+    person_fields = {field.name: field for field in tables["person"].fields}
+    assert person_fields["person_id"].description == "A unique identifier for each person."
+    assert (
+        person_fields["gender_concept_id"].description
+        == "A foreign key to the GENDER concept in the Standardized Vocabularies."
+    )
 
 
 def test_fetch_specification_from_local_file_success(spec_manager):
