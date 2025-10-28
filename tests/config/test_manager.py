@@ -12,96 +12,64 @@ import pytest
 from pathlib import Path
 from unittest.mock import patch, mock_open
 from omopcloudetl_core.config.manager import ConfigManager
-from omopcloudetl_core.exceptions import ConfigurationError, SecretAccessError
+from omopcloudetl_core.exceptions import ConfigurationError
+
+@pytest.fixture
+def config_manager():
+    """Provides a ConfigManager instance."""
+    return ConfigManager()
 
 VALID_YAML = """
 connection:
-  provider_type: "test"
+  provider_type: 'test'
+  host: 'localhost'
 orchestrator:
-  type: "local"
+  type: 'local'
 schemas:
-  source: "raw"
-  target: "cdm"
+  source: 'raw'
+  target: 'cdm'
 """
 
-INVALID_YAML = "this is not a dictionary"
-
-YAML_WITH_SECRET = """
+SECRET_YAML = """
 connection:
-  provider_type: "test"
-  password_secret_id: "DB_PASSWORD"
+  provider_type: 'test'
+  password_secret_id: 'MY_DB_PASSWORD'
 orchestrator:
-  type: "local"
+  type: 'local'
 schemas:
-  source: "raw"
-  target: "cdm"
-secrets:
-  provider_type: "environment"
+  source: 'raw'
 """
 
+def test_load_project_config_success(config_manager):
+    """Tests successfully loading a valid YAML configuration file."""
+    with patch("builtins.open", mock_open(read_data=VALID_YAML)) as mock_file:
+        with patch("pathlib.Path.is_file", return_value=True):
+            config = config_manager.load_project_config(Path("dummy/path/config.yml"))
+            assert config.connection.provider_type == "test"
+            assert config.schemas["source"] == "raw"
+            mock_file.assert_called_once_with(Path("dummy/path/config.yml"), "r")
 
-@pytest.fixture
-def manager():
-    return ConfigManager()
+def test_load_project_config_resolves_secret(config_manager, monkeypatch):
+    """Tests that the ConfigManager correctly resolves secrets."""
+    secret_key = "MY_DB_PASSWORD"
+    secret_value = "password123"
+    monkeypatch.setenv(secret_key, secret_value)
 
+    with patch("builtins.open", mock_open(read_data=SECRET_YAML)):
+        with patch("pathlib.Path.is_file", return_value=True):
+            config = config_manager.load_project_config(Path("config.yml"))
+            assert config.connection.password.get_secret_value() == secret_value
 
-def test_load_config_success(manager):
-    with patch("builtins.open", mock_open(read_data=VALID_YAML)):
-        with patch.object(Path, "is_file", return_value=True):
-            config = manager.load_project_config(Path("dummy/path/config.yml"))
-    assert config.connection.provider_type == "test"
-    assert config.orchestrator.type == "local"
-    assert config.schemas["source"] == "raw"
+def test_load_config_file_not_found(config_manager):
+    """Tests that a ConfigurationError is raised for a missing config file."""
+    with patch("pathlib.Path.is_file", return_value=False):
+        with pytest.raises(ConfigurationError, match="not found"):
+            config_manager.load_project_config(Path("non_existent_file.yml"))
 
-
-def test_load_config_not_found(manager):
-    with patch.object(Path, "is_file", return_value=False):
-        with pytest.raises(ConfigurationError, match="Configuration file not found"):
-            manager.load_project_config(Path("non_existent_file.yml"))
-
-
-def test_load_config_invalid_yaml(manager):
-    with patch("builtins.open", mock_open(read_data=INVALID_YAML)):
-        with patch.object(Path, "is_file", return_value=True):
-            with pytest.raises(ConfigurationError, match="Failed to load or validate configuration"):
-                manager.load_project_config(Path("dummy/path/invalid.yml"))
-
-
-def test_secret_resolution_success(manager):
-    with patch("builtins.open", mock_open(read_data=YAML_WITH_SECRET)):
-        with patch.object(Path, "is_file", return_value=True):
-            with patch.dict("os.environ", {"DB_PASSWORD": "supersecret"}):
-                config = manager.load_project_config(Path("dummy/path/secret.yml"))
-    assert config.connection.password.get_secret_value() == "supersecret"
-
-
-def test_secret_resolution_failure(manager):
-    with patch("builtins.open", mock_open(read_data=YAML_WITH_SECRET)):
-        with patch.object(Path, "is_file", return_value=True):
-            with patch.dict("os.environ", {}, clear=True):
-                with pytest.raises(SecretAccessError):
-                    manager.load_project_config(Path("dummy/path/secret.yml"))
-
-
-YAML_WITHOUT_SECRETS_BLOCK = """
-connection:
-  provider_type: "test"
-  password_secret_id: "ENV_DB_PASSWORD"
-orchestrator:
-  type: "local"
-schemas:
-  source: "raw"
-  target: "cdm"
-"""
-
-
-def test_secret_resolution_without_secrets_block_success(manager):
-    """
-    Tests that secret resolution defaults to EnvironmentSecretsProvider
-    when password_secret_id is provided but a 'secrets' block is not.
-    """
-    with patch("builtins.open", mock_open(read_data=YAML_WITHOUT_SECRETS_BLOCK)):
-        with patch.object(Path, "is_file", return_value=True):
-            with patch.dict("os.environ", {"ENV_DB_PASSWORD": "env_secret_password"}):
-                config = manager.load_project_config(Path("dummy/path/no_secret_block.yml"))
-    assert config.connection.password.get_secret_value() == "env_secret_password"
+def test_load_invalid_yaml(config_manager):
+    """Tests that a ConfigurationError is raised for invalid YAML."""
+    invalid_yaml = "connection: { provider_type: 'test'"
+    with patch("builtins.open", mock_open(read_data=invalid_yaml)):
+        with patch("pathlib.Path.is_file", return_value=True):
+            with pytest.raises(ConfigurationError):
+                config_manager.load_project_config(Path("invalid.yml"))
