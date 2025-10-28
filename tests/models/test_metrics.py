@@ -12,6 +12,7 @@ import pytest
 from pydantic import ValidationError
 from omopcloudetl_core.models.metrics import LoadMetrics, ExecutionMetrics
 
+
 class TestLoadMetrics:
     def test_load_metrics_creation(self):
         metrics = LoadMetrics(
@@ -70,4 +71,3 @@ class TestExecutionMetrics:
         assert metrics.rows_updated is None
         assert metrics.rows_deleted is None
         assert metrics.query_id == "query-789"
-
