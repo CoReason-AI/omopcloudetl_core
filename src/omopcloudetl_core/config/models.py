@@ -10,7 +10,7 @@
 
 from typing import Any, Dict, Optional
 
-from pydantic import BaseModel, SecretStr, model_validator
+from pydantic import BaseModel, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 

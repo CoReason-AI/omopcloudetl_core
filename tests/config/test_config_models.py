@@ -51,7 +51,6 @@ class TestProjectConfig:
         with pytest.raises(ValidationError):
             ProjectConfig(**config_data)
 
-
     def test_password_secret_id_with_secrets_config_is_valid(self):
         """
         Tests that the configuration is valid when both password_secret_id
