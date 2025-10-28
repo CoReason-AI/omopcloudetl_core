@@ -99,7 +99,10 @@ def test_dag_validation_undefined_dependency(compiler):
     "side_effect, patch_target",
     [
         (IOError("File not found"), "builtins.open"),
-        (ValidationError.from_exception_data("Validation error", []), "omopcloudetl_core.models.dml.DMLDefinition.model_validate"),
+        (
+            ValidationError.from_exception_data("Validation error", []),
+            "omopcloudetl_core.models.dml.DMLDefinition.model_validate",
+        ),
         (yaml.YAMLError("YAML error"), "yaml.safe_load"),
     ],
 )
@@ -210,7 +213,12 @@ def test_compile_sql_step_success(compiler):
 
 def test_compile_dml_step_success(compiler):
     """Tests the successful compilation of a DML step."""
-    with patch("builtins.open", mock_open(read_data="target_table: person\ntarget_schema_ref: cdm\nidempotency_keys: [person_id]\nprimary_source:\n  table: staging_person\n  alias: sp\n  schema_ref: source\nmappings:\n- type: direct\n  target_field: person_id\n  source_field: sp.person_id")):
+    with patch(
+        "builtins.open",
+        mock_open(
+            read_data="target_table: person\ntarget_schema_ref: cdm\nidempotency_keys: [person_id]\nprimary_source:\n  table: staging_person\n  alias: sp\n  schema_ref: source\nmappings:\n- type: direct\n  target_field: person_id\n  source_field: sp.person_id"
+        ),
+    ):
         workflow_config = WorkflowConfig.model_validate(
             {"workflow_name": "test", "steps": [{"name": "s1", "type": "dml", "dml_file": "a.dml"}]}
         )
