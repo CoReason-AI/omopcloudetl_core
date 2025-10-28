@@ -83,12 +83,12 @@ def test_log_step_end_success_execution_metrics(metadata_manager, mock_connectio
     assert "rows_affected = ?" in sql_call
     assert "rows_inserted = ?" in sql_call
     assert "query_id = ?" in sql_call
+    assert "duration_seconds = EXTRACT(EPOCH FROM (end_time - start_time))" in sql_call
     assert params[0] == "COMPLETED"
     assert isinstance(params[1], datetime)  # end_time
-    assert params[2] is None  # duration_seconds
-    assert params[3] == 100  # rows_affected
-    assert params[4] == 80  # rows_inserted
-    assert params[5] == "query-123"
+    assert params[2] == 100  # rows_affected
+    assert params[3] == 80  # rows_inserted
+    assert params[4] == "query-123"
 
 
 def test_log_step_end_success_load_metrics(metadata_manager, mock_connection):
@@ -115,12 +115,12 @@ def test_log_step_end_success_load_metrics(metadata_manager, mock_connection):
     assert "rows_processed = ?" in sql_call
     assert "rows_inserted = ?" in sql_call
     assert "query_id = ?" in sql_call
+    assert "duration_seconds = EXTRACT(EPOCH FROM (end_time - start_time))" in sql_call
     assert params[0] == "COMPLETED"
     assert isinstance(params[1], datetime)  # end_time
-    assert params[2] is None  # duration_seconds
-    assert params[3] == 1000  # rows_processed
-    assert params[4] == 990  # rows_inserted
-    assert params[5] == "query-456"
+    assert params[2] == 1000  # rows_processed
+    assert params[3] == 990  # rows_inserted
+    assert params[4] == "query-456"
 
 
 def test_log_step_end_failure(metadata_manager, mock_connection):
@@ -139,7 +139,7 @@ def test_log_step_end_failure(metadata_manager, mock_connection):
     assert f"UPDATE {MetadataManager.METADATA_TABLE}" in sql_call
     assert "status = ?" in sql_call
     assert "error_message = ?" in sql_call
+    assert "duration_seconds = EXTRACT(EPOCH FROM (end_time - start_time))" in sql_call
     assert params[0] == "FAILED"
     assert isinstance(params[1], datetime)  # end_time
-    assert params[2] is None  # duration_seconds
-    assert params[3] == "Something went wrong"
+    assert params[2] == "Something went wrong"

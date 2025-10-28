@@ -106,11 +106,10 @@ class MetadataManager:
         update_clauses.append("end_time = ?")
         params.append(end_time)
 
-        # Duration calculation should be handled by the database dialect
-        # Here we assume a simple subtraction is possible for the placeholder
-        update_clauses.append("duration_seconds = ?")
-        # Placeholder for duration, actual calculation would be in the SQL for the specific dialect
-        params.append(None)
+        # Let the database calculate the duration.
+        # NOTE: This uses EXTRACT(EPOCH ...), which is part of the SQL standard
+        # but may not be supported by all database backends.
+        update_clauses.append("duration_seconds = EXTRACT(EPOCH FROM (end_time - start_time))")
 
         if metrics:
             if isinstance(metrics, ExecutionMetrics):
