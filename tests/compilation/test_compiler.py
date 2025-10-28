@@ -10,11 +10,17 @@
 
 import pytest
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, mock_open
 from omopcloudetl_core.compilation.compiler import WorkflowCompiler
 from omopcloudetl_core.config.models import ProjectConfig
 from omopcloudetl_core.models.workflow import WorkflowConfig
-from omopcloudetl_core.exceptions import WorkflowError, CompilationError
+import yaml
+from pydantic import ValidationError
+from omopcloudetl_core.exceptions import (
+    WorkflowError,
+    CompilationError,
+    DMLValidationError,
+)
 from omopcloudetl_core.specifications.models import CDMSpecification, CDMTableSpec
 
 
@@ -77,6 +83,40 @@ def test_dag_validation_cycle_error(compiler):
         compiler._validate_dag(config.steps)
 
 
+def test_dag_validation_undefined_dependency(compiler):
+    """Tests that a DAG with an undefined dependency raises a WorkflowError."""
+    config = WorkflowConfig.model_validate(
+        {
+            "workflow_name": "test",
+            "steps": [{"name": "b", "type": "sql", "sql_file": "b.sql", "depends_on": ["a"]}],
+        }
+    )
+    with pytest.raises(WorkflowError, match="undefined dependency"):
+        compiler._validate_dag(config.steps)
+
+
+@pytest.mark.parametrize(
+    "side_effect, patch_target",
+    [
+        (IOError("File not found"), "builtins.open"),
+        (
+            ValidationError.from_exception_data("Validation error", []),
+            "omopcloudetl_core.models.dml.DMLDefinition.model_validate",
+        ),
+        (yaml.YAMLError("YAML error"), "yaml.safe_load"),
+    ],
+)
+def test_compile_dml_step_handles_errors(side_effect, patch_target, compiler):
+    """Tests that DMLValidationError is raised for various errors during DML file processing."""
+    workflow_config = WorkflowConfig.model_validate(
+        {"workflow_name": "test", "steps": [{"name": "s1", "type": "dml", "dml_file": "a.dml"}]}
+    )
+    with patch(patch_target, side_effect=side_effect):
+        with patch("builtins.open", mock_open(read_data="key: value")):  # Ensure open works for non-IOError tests
+            with pytest.raises(DMLValidationError, match="Failed to load, render, or validate DML file"):
+                compiler.compile(workflow_config, Path("."))
+
+
 def test_compile_ddl_step(compiler):
     """Tests the successful compilation of a DDL step."""
     workflow_config = WorkflowConfig.model_validate(
@@ -127,3 +167,62 @@ def test_compile_missing_schema_ref(compiler):
     )
     with pytest.raises(CompilationError, match="Schema reference 'unknown' not found"):
         compiler.compile(workflow_config, Path("."))
+
+
+@patch("builtins.open", side_effect=IOError("File not found"))
+def test_compile_sql_step_io_error(mock_open, compiler):
+    """Tests that CompilationError is raised on an IOError during SQL file read."""
+    workflow_config = WorkflowConfig.model_validate(
+        {"workflow_name": "test", "steps": [{"name": "s1", "type": "sql", "sql_file": "a.sql"}]}
+    )
+    with pytest.raises(CompilationError, match="Failed to read SQL file"):
+        compiler.compile(workflow_config, Path("."))
+
+
+def test_compile_bulk_load_step_missing_schema(compiler):
+    """Tests that a CompilationError is raised for a missing schema reference in a bulk load step."""
+    workflow_config = WorkflowConfig.model_validate(
+        {
+            "workflow_name": "test",
+            "steps": [
+                {
+                    "name": "s1",
+                    "type": "bulk_load",
+                    "source_uri_pattern": "s3://bucket/{{ schemas.source }}",
+                    "target_table": "person",
+                    "target_schema_ref": "unknown",
+                }
+            ],
+        }
+    )
+    with pytest.raises(CompilationError, match="Schema reference 'unknown' not found"):
+        compiler.compile(workflow_config, Path("."))
+
+
+def test_compile_sql_step_success(compiler):
+    """Tests the successful compilation of an SQL step."""
+    with patch("builtins.open", mock_open(read_data="SELECT 1;")) as mock_file:
+        workflow_config = WorkflowConfig.model_validate(
+            {"workflow_name": "test", "steps": [{"name": "s1", "type": "sql", "sql_file": "a.sql"}]}
+        )
+        plan = compiler.compile(workflow_config, Path("."))
+        assert len(plan.steps) == 1
+        assert plan.steps[0].type == "sql"
+        mock_file.assert_called_once_with(Path("./a.sql"), "r")
+
+
+def test_compile_dml_step_success(compiler):
+    """Tests the successful compilation of a DML step."""
+    with patch(
+        "builtins.open",
+        mock_open(
+            read_data="target_table: person\ntarget_schema_ref: cdm\nidempotency_keys: [person_id]\nprimary_source:\n  table: staging_person\n  alias: sp\n  schema_ref: source\nmappings:\n- type: direct\n  target_field: person_id\n  source_field: sp.person_id"
+        ),
+    ):
+        workflow_config = WorkflowConfig.model_validate(
+            {"workflow_name": "test", "steps": [{"name": "s1", "type": "dml", "dml_file": "a.dml"}]}
+        )
+        plan = compiler.compile(workflow_config, Path("."))
+        assert len(plan.steps) == 1
+        assert plan.steps[0].type == "sql"
+        compiler.sql_generator.generate_transform_sql.assert_called_once()

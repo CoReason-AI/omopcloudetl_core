@@ -22,12 +22,37 @@ def test_connection_config_env_vars():
             "OMOPCLOUDETL_CONN_PROVIDER_TYPE": "test_provider",
             "OMOPCLOUDETL_CONN_HOST": "localhost",
             "OMOPCLOUDETL_CONN_USER": "test_user",
+            "OMOPCLOUDETL_CONN_PASSWORD": "test_password",
         },
     ):
         config = ConnectionConfig()
         assert config.provider_type == "test_provider"
         assert config.host == "localhost"
         assert config.user == "test_user"
+        assert config.password.get_secret_value() == "test_password"
+
+    with patch.dict(
+        "os.environ",
+        {
+            "OMOPCLOUDETL_CONN_PROVIDER_TYPE": "test_provider",
+            "OMOPCLOUDETL_CONN_HOST": "localhost",
+            "OMOPCLOUDETL_CONN_USER": "test_user",
+        },
+        clear=True,
+    ):
+        with pytest.raises(ValidationError):
+            ConnectionConfig()
+
+
+def test_connection_config_warns_on_both_passwords():
+    """Tests that a warning is issued when both password and password_secret_id are provided."""
+    with pytest.warns(UserWarning, match="Both 'password' and 'password_secret_id' are provided"):
+        ConnectionConfig(
+            provider_type="test",
+            user="test",
+            password="password",
+            password_secret_id="secret",
+        )
 
 
 class TestProjectConfig:

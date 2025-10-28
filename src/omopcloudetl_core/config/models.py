@@ -8,9 +8,10 @@
 #
 # Source Code: https://github.com/CoReason-AI/omopcloudetl_core
 
+import warnings
 from typing import Any, Dict, Optional
 
-from pydantic import BaseModel, SecretStr
+from pydantic import BaseModel, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -43,6 +44,21 @@ class ConnectionConfig(BaseSettings):
         env_nested_delimiter="__",
         case_sensitive=False,
     )
+
+    @model_validator(mode="after")
+    def check_password_logic(self) -> "ConnectionConfig":
+        if self.user and not (self.password or self.password_secret_id):
+            raise ValueError(
+                f"A 'user' is specified for provider '{self.provider_type}', "
+                "but no 'password' or 'password_secret_id' was provided."
+            )
+        if self.password and self.password_secret_id:
+            warnings.warn(
+                f"Both 'password' and 'password_secret_id' are provided "
+                f"for provider '{self.provider_type}'. "
+                "The direct 'password' will be used, and the secret will not be resolved."
+            )
+        return self
 
 
 class ProjectConfig(BaseModel):
