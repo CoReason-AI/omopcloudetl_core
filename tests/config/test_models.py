@@ -8,8 +8,6 @@
 #
 # Source Code: https://github.com/CoReason-AI/omopcloudetl_core
 
-import os
-from unittest import mock
 
 from pydantic import ValidationError, SecretStr
 import pytest
@@ -60,4 +58,3 @@ def test_secrets_config_creation():
     secrets_config = SecretsConfig(**secrets_data)
     assert secrets_config.provider_type == "env"
     assert secrets_config.configuration["prefix"] == "MY_APP_"
-
