@@ -8,7 +8,7 @@
 #
 # Source Code: https://github.com/CoReason-AI/omopcloudetl_core
 
-from loguru import logger
+from .logging import logger
 
 
 def hello_world():
