@@ -8,23 +8,16 @@
 #
 # Source Code: https://github.com/CoReason-AI/omopcloudetl_core
 
-from typing import Any, Dict, List, Optional
-
 from pydantic import BaseModel, Field
-
+from typing import List, Dict, Optional, Any
 
 class CDMFieldSpec(BaseModel):
-    """Defines the specification for a single field in a CDM table."""
-
     name: str
-    type: str  # Generalized SQL type (e.g., BIGINT, VARCHAR(50))
+    type: str # Generalized SQL type (e.g., BIGINT, VARCHAR(50))
     required: bool
-    description: Optional[str] = None
-
+    description: Optional[str]
 
 class CDMTableSpec(BaseModel):
-    """Defines the specification for a single table in the CDM."""
-
     name: str
     fields: List[CDMFieldSpec]
     primary_key: List[str]
@@ -33,9 +26,6 @@ class CDMTableSpec(BaseModel):
     # Centralized optimization hints (e.g., {"databricks": {"zorder_by": ["field"]}})
     optimizations: Dict[str, Dict[str, Any]] = Field(default_factory=dict)
 
-
 class CDMSpecification(BaseModel):
-    """The root model for a complete OMOP CDM specification."""
-
     version: str
     tables: Dict[str, CDMTableSpec]

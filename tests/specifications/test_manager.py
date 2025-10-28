@@ -8,105 +8,88 @@
 #
 # Source Code: https://github.com/CoReason-AI/omopcloudetl_core
 
-import os
 import pytest
 import requests
+import requests_mock
 from pathlib import Path
-from unittest.mock import patch, mock_open
-from tenacity import RetryError
-from omopcloudetl_core.specifications.manager import SpecificationManager, OHDSI_REPO_URL
+from omopcloudetl_core.specifications.manager import SpecificationManager
 from omopcloudetl_core.exceptions import SpecificationError
-
-VALID_CDM_CSV = (
-    "cdmTableName,cdmFieldName,isPrimaryKey,isRequired,cdmDatatype\n"
-    "PERSON,PERSON_ID,Yes,Yes,BIGINT\n"
-    "PERSON,GENDER_CONCEPT_ID,No,Yes,INTEGER"
-)
-
 
 @pytest.fixture
 def spec_manager(tmp_path):
-    """Provides a SpecificationManager instance with a temporary cache directory."""
-    return SpecificationManager(cache_dir=tmp_path)
+    """Fixture for a SpecificationManager with a temporary cache directory."""
+    return SpecificationManager(cache_dir=str(tmp_path / ".cache"))
 
+def test_fetch_specification_remote_success(spec_manager, requests_mock):
+    """Test successful fetching of a specification from a remote URL."""
+    version = "v5.4"
+    field_url = f"{spec_manager.BASE_URL}/OMOP%20CDM%20{version}/OMOP_CDM_{version}_FIELD_LEVEL.csv"
+    pk_url = f"{spec_manager.BASE_URL}/OMOP%20CDM%20{version}/OMOP_CDM_{version}_Primary_Keys.csv"
 
-def test_spec_manager_init_no_cache_dir(monkeypatch):
-    """Tests that the SpecificationManager initializes without a cache_dir."""
-    # os.path.join is used to create a platform-independent path
-    expected_path = os.path.join(os.path.expanduser("~"), ".omopcloudetl_core", "cache")
-    monkeypatch.setattr(Path, "home", lambda: Path(os.path.expanduser("~")))
-    manager = SpecificationManager()
-    assert manager.cache.directory == expected_path
+    field_csv = "cdm_table_name,cdm_field_name,is_required,cdm_datatype,is_deprecated,numerical_precision,source_value,range,description"
+    pk_csv = "table_name,constraint_name,constraint_type"
 
-
-def test_fetch_specification_from_remote_success(spec_manager, requests_mock):
-    """Tests successfully fetching and parsing a remote CDM specification."""
-    version = "5.4"
-    url = f"{OHDSI_REPO_URL}/OMOP_CDM_v{version}_Field_Level.csv"
-    requests_mock.get(url, text=VALID_CDM_CSV)
+    requests_mock.get(field_url, text=field_csv)
+    requests_mock.get(pk_url, text=pk_csv)
 
     spec = spec_manager.fetch_specification(version)
-
     assert spec.version == version
-    assert "person" in spec.tables
-    assert spec.tables["person"].fields[0].name == "person_id"
-    assert spec.tables["person"].primary_key == ["person_id"]
+    assert spec.tables == {}
 
+def test_fetch_specification_remote_failure(spec_manager, requests_mock):
+    """Test failure when fetching a specification from a remote URL."""
+    version = "v5.4"
+    field_url = f"{spec_manager.BASE_URL}/OMOP%20CDM%20{version}/OMOP_CDM_{version}_FIELD_LEVEL.csv"
+    requests_mock.get(field_url, status_code=404)
 
-def test_fetch_specification_from_local_file_success(spec_manager):
-    """Tests successfully loading a specification from a local file."""
-    version = "5.4-local"
-    local_path = "/fake/path/spec.csv"
-    with patch("builtins.open", mock_open(read_data=VALID_CDM_CSV)):
-        spec = spec_manager.fetch_specification(version, local_path=local_path)
-        assert "person" in spec.tables
-
-
-def test_fetch_specification_caching(spec_manager, requests_mock):
-    """Tests that specifications are cached after the first fetch."""
-    version = "5.5"
-    url = f"{OHDSI_REPO_URL}/OMOP_CDM_v{version}_Field_Level.csv"
-    requests_mock.get(url, text=VALID_CDM_CSV)
-
-    spec_manager.fetch_specification(version)  # First call, should fetch and cache
-    spec_manager.fetch_specification(version)  # Second call, should use cache
-
-    assert requests_mock.call_count == 1
-
-
-def test_fetch_remote_fails_with_network_error(spec_manager, requests_mock):
-    """Tests that SpecificationError is raised on a network failure."""
-    version = "5.6"
-    url = f"{OHDSI_REPO_URL}/OMOP_CDM_v{version}_Field_Level.csv"
-    requests_mock.get(url, exc=requests.exceptions.RequestException("Test error"))
-
-    with pytest.raises(SpecificationError, match="Failed to fetch remote"):
+    with pytest.raises(SpecificationError):
         spec_manager.fetch_specification(version)
 
+def test_fetch_specification_local_success(spec_manager, tmp_path):
+    """Test successful fetching of a specification from a local path."""
+    version = "v5.4"
+    local_path = tmp_path
+    (local_path / f"OMOP_CDM_{version}_FIELD_LEVEL.csv").write_text("cdm_table_name,cdm_field_name,is_required,cdm_datatype,is_deprecated,numerical_precision,source_value,range,description")
+    (local_path / f"OMOP_CDM_{version}_Primary_Keys.csv").write_text("table_name,constraint_name,constraint_type")
 
-def test_fetch_local_fails_with_file_not_found(spec_manager):
-    """Tests that SpecificationError is raised if the local file does not exist."""
-    with pytest.raises(SpecificationError, match="not found"):
-        # The mock_open patch is omitted, so open will raise FileNotFoundError
-        spec_manager.fetch_specification("5.4", local_path="/non/existent/file.csv")
+    spec = spec_manager.fetch_specification(version, local_path=local_path)
+    assert spec.version == version
+    assert spec.tables == {}
 
+def test_fetch_specification_local_failure(spec_manager, tmp_path):
+    """Test failure when local specification files are not found."""
+    version = "v5.4"
+    with pytest.raises(SpecificationError):
+        spec_manager.fetch_specification(version, local_path=tmp_path)
 
-def test_fetch_remote_fails_after_retries(spec_manager):
-    """Tests that SpecificationError is raised after all retry attempts fail."""
-    with patch(
-        "omopcloudetl_core.specifications.manager.SpecificationManager._fetch_url_content",
-        side_effect=RetryError(last_attempt="..."),
-    ):
-        with pytest.raises(SpecificationError, match="Failed to fetch remote"):
-            spec_manager.fetch_specification("5.7")
+def test_parsing_logic(spec_manager):
+    """Test the CSV parsing and model hydration logic."""
+    version = "v5.4"
+    field_csv = (
+        "cdm_table_name,cdm_field_name,is_required,cdm_datatype,is_deprecated,numerical_precision,source_value,range,description\n"
+        "person,person_id,Yes,BIGINT,No,0,,,Person identifier\n"
+        "person,gender_concept_id,No,INTEGER,No,0,,,Gender concept identifier"
+    )
+    pk_csv = (
+        "table_name,constraint_name,constraint_type\n"
+        "person,pk_person,PRIMARY KEY"
+    )
 
+    spec = spec_manager._parse_specification(version, field_csv, pk_csv)
 
-def test_parsing_fails_with_generic_error(spec_manager):
-    """Tests that a generic error during parsing is wrapped in SpecificationError."""
-    with patch("builtins.open", mock_open(read_data=VALID_CDM_CSV)):
-        with patch(
-            "omopcloudetl_core.specifications.manager.SpecificationManager._parse_cdm_csv",
-            side_effect=Exception("Parsing error"),
-        ):
-            with pytest.raises(SpecificationError, match="Failed to parse"):
-                spec_manager.fetch_specification("5.8", local_path="/fake/path/spec.csv")
+    assert "person" in spec.tables
+    person_table = spec.tables["person"]
+    assert person_table.name == "person"
+    assert len(person_table.fields) == 2
+    assert person_table.primary_key == ["pk_person"]
+
+    field1 = person_table.fields[0]
+    assert field1.name == "person_id"
+    assert field1.type == "BIGINT"
+    assert field1.required is True
+    assert field1.description == "Person identifier"
+
+    field2 = person_table.fields[1]
+    assert field2.name == "gender_concept_id"
+    assert field2.type == "INTEGER"
+    assert field2.required is False

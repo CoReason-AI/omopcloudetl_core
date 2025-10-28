@@ -8,8 +8,8 @@
 #
 # Source Code: https://github.com/CoReason-AI/omopcloudetl_core
 
-from importlib.metadata import EntryPoint, entry_points
-from typing import Dict, Iterable, Optional, Tuple, Type
+from importlib import metadata
+from typing import Dict, Type, Tuple
 
 from omopcloudetl_core.abstractions.connections import BaseConnection
 from omopcloudetl_core.abstractions.generators import BaseDDLGenerator, BaseSQLGenerator
@@ -24,94 +24,79 @@ from omopcloudetl_core.config.models import (
     SecretsConfig,
 )
 from omopcloudetl_core.exceptions import DiscoveryError
+from omopcloudetl_core.logging import logger
 
 
 class DiscoveryManager:
-    """Manages the discovery and instantiation of pluggable components."""
-
-    def __init__(self) -> None:
-        self._secrets_providers: Dict[str, Type[BaseSecretsProvider]] = {}
-        self._connections: Dict[str, Type[BaseConnection]] = {}
-        self._orchestrators: Dict[str, Type[BaseOrchestrator]] = {}
+    """Discovers and instantiates pluggable components using entry points."""
 
     def _discover_components(self, entry_point_group: str) -> Dict[str, Type]:
-        """Generic discovery method for a given entry point group."""
-        discovered_components: Dict[str, Type] = {}
-        # Use importlib.metadata to find installed plugins
-        eps = entry_points()
-        group_eps: Iterable[EntryPoint] = []
-        if hasattr(eps, "select"):  # New API in Python 3.10+
-            group_eps = eps.select(group=entry_point_group)
-        elif isinstance(eps, dict):  # Deprecated dict-based API
-            group_eps = eps.get(entry_point_group, [])
-        else:  # Fallback for iterables, like the list from mocks
-            group_eps = eps
+        """
+        Discovers all available components for a given entry point group.
 
-        for entry in group_eps:
-            try:
-                discovered_components[entry.name] = entry.load()
-            except Exception as e:
-                raise DiscoveryError(f"Failed to load component '{entry.name}' from group '{entry_point_group}'") from e
-        return discovered_components
+        Args:
+            entry_point_group: The name of the entry point group to scan.
 
-    def get_secrets_provider(self, config: Optional[SecretsConfig] = None) -> BaseSecretsProvider:
-        """Discovers and instantiates a secrets provider."""
-        if not config:
+        Returns:
+            A dictionary mapping component names to their loaded classes.
+        """
+        components = {}
+        try:
+            entry_points = metadata.entry_points(group=entry_point_group)
+            for entry_point in entry_points:
+                components[entry_point.name] = entry_point.load()
+        except Exception as e:
+            raise DiscoveryError(f"Failed to discover components for group '{entry_point_group}': {e}") from e
+        return components
+
+    def get_secrets_provider(self, config: SecretsConfig | None) -> BaseSecretsProvider:
+        """
+        Gets an instance of a secrets provider based on the configuration.
+
+        Defaults to EnvironmentSecretsProvider if no provider is specified.
+        """
+        if not config or not config.provider_type:
+            logger.debug("No secrets provider configured, defaulting to EnvironmentSecretsProvider.")
             return EnvironmentSecretsProvider()
 
-        if not self._secrets_providers:
-            self._secrets_providers = self._discover_components("omopcloudetl.secrets")
-            self._secrets_providers["environment"] = EnvironmentSecretsProvider
+        providers = self._discover_components("omopcloudetl.secrets")
+        provider_class = providers.get(config.provider_type)
 
-        provider_class = self._secrets_providers.get(config.provider_type)
         if not provider_class:
             raise DiscoveryError(f"Secrets provider '{config.provider_type}' not found.")
 
-        try:
-            return provider_class(**config.configuration)
-        except Exception as e:
-            raise DiscoveryError(f"Failed to instantiate secrets provider '{config.provider_type}'.") from e
+        return provider_class(**config.configuration)
 
     def get_connection(self, config: ConnectionConfig) -> BaseConnection:
-        """Discovers and instantiates a database connection provider."""
-        if not self._connections:
-            self._connections = self._discover_components("omopcloudetl.providers")
+        """Gets an instance of a database connection provider."""
+        providers = self._discover_components("omopcloudetl.providers")
+        provider_class = providers.get(config.provider_type)
 
-        connection_class = self._connections.get(config.provider_type)
-        if not connection_class:
+        if not provider_class:
             raise DiscoveryError(f"Connection provider '{config.provider_type}' not found.")
 
-        try:
-            # Pass the entire config model to the constructor
-            return connection_class(config)
-        except Exception as e:
-            raise DiscoveryError(f"Failed to instantiate connection provider '{config.provider_type}'.") from e
+        return provider_class(config)
 
     def get_orchestrator(self, config: OrchestratorConfig) -> BaseOrchestrator:
-        """Discovers and instantiates a workflow orchestrator."""
-        if not self._orchestrators:
-            self._orchestrators = self._discover_components("omopcloudetl.orchestrators")
+        """Gets an instance of an orchestrator."""
+        orchestrators = self._discover_components("omopcloudetl.orchestrators")
+        orchestrator_class = orchestrators.get(config.type)
 
-        orchestrator_class = self._orchestrators.get(config.type)
         if not orchestrator_class:
             raise DiscoveryError(f"Orchestrator '{config.type}' not found.")
 
-        try:
-            return orchestrator_class(**config.configuration)
-        except Exception as e:
-            raise DiscoveryError(f"Failed to instantiate orchestrator '{config.type}'.") from e
+        return orchestrator_class(config.configuration)
 
     def get_generators(self, connection: BaseConnection) -> Tuple[BaseSQLGenerator, BaseDDLGenerator]:
         """
-        Retrieves the SQL and DDL generator classes from a connection instance
-        and initializes them.
+        Retrieves and initializes the SQL and DDL generators from a connection instance.
         """
-        if not hasattr(connection, "SQL_GENERATOR_CLASS") or not hasattr(connection, "DDL_GENERATOR_CLASS"):
+        try:
+            sql_generator = connection.SQL_GENERATOR_CLASS()
+            ddl_generator = connection.DDL_GENERATOR_CLASS()
+            return sql_generator, ddl_generator
+        except AttributeError as e:
             raise DiscoveryError(
-                f"Connection provider '{connection.provider_type}' does not define "
-                "SQL_GENERATOR_CLASS and DDL_GENERATOR_CLASS attributes."
-            )
-
-        sql_generator = connection.SQL_GENERATOR_CLASS()
-        ddl_generator = connection.DDL_GENERATOR_CLASS()
-        return sql_generator, ddl_generator
+                f"Connection provider '{connection.provider_type}' does not correctly "
+                "define 'SQL_GENERATOR_CLASS' or 'DDL_GENERATOR_CLASS'."
+            ) from e

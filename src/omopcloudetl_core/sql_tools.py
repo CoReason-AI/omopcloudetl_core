@@ -21,7 +21,7 @@ def render_jinja_template(template_str: str, context: Dict[str, Any]) -> str:
 
     Args:
         template_str: The Jinja2 template string.
-        context: The context dictionary to render the template with.
+        context: A dictionary of variables to use for rendering.
 
     Returns:
         The rendered string.
@@ -33,43 +33,35 @@ def render_jinja_template(template_str: str, context: Dict[str, Any]) -> str:
 
 def apply_query_tag(sql: str, context: Dict[str, str]) -> str:
     """
-    Prepends a JSON-formatted comment block to a SQL statement for tracking.
+    Prepends a SQL comment to a query with a JSON context.
 
     Args:
-        sql: The SQL statement.
-        context: The context dictionary to include in the tag.
+        sql: The SQL query string.
+        context: A dictionary of key-value pairs for the tag.
 
     Returns:
-        The SQL statement with the prepended query tag.
+        The SQL query with the prepended context tag.
     """
-    tag = f"/* OmopCloudEtlContext: {json.dumps(context)} */"
-    return f"{tag}\n{sql}"
+    # Sanitize context to ensure it's a flat dictionary of strings
+    sanitized_context = {
+        str(k): str(v) for k, v in context.items() if isinstance(v, (str, int, float, bool))
+    }
+    json_context = json.dumps(sanitized_context, sort_keys=True)
+    return f"/* OmopCloudEtlContext: {json_context} */\n{sql}"
 
 
 def split_sql_script(sql_script: str) -> List[str]:
     """
-    Splits a SQL script into a list of individual, non-empty statements,
-    stripping comments and trailing semicolons.
+    Splits a multi-statement SQL script into a list of individual statements,
+    stripping comments and empty statements.
 
     Args:
-        sql_script: A string containing one or more SQL statements.
+        sql_script: The SQL script string.
 
     Returns:
-        A list of individual SQL statements.
+        A list of individual, non-empty SQL statements.
     """
-    # First, remove comments from the script
-    formatted_script = sqlparse.format(sql_script, strip_comments=True)
-    statements = sqlparse.split(formatted_script)
-
-    # Clean up statements
-    cleaned_statements = []
-    for stmt in statements:
-        stripped_stmt = stmt.strip()
-        if stripped_stmt:
-            # Remove trailing semicolon if it exists
-            if stripped_stmt.endswith(";"):
-                stripped_stmt = stripped_stmt[:-1]
-            if stripped_stmt:
-                cleaned_statements.append(stripped_stmt)
-
-    return cleaned_statements
+    # Use sqlparse to remove comments
+    filtered_script = sqlparse.format(sql_script, strip_comments=True)
+    statements = sqlparse.split(filtered_script)
+    return [stmt.strip() for stmt in statements if stmt.strip()]

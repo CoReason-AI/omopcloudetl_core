@@ -8,29 +8,29 @@
 #
 # Source Code: https://github.com/CoReason-AI/omopcloudetl_core
 
-from typing import Annotated, Any, Dict, List, Literal, Sequence, Union
+from typing import Annotated, Any, Dict, List, Literal, Union
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
 
 
-# Part 1: Workflow Configuration (User-defined)
+# Part 1: User-Defined Workflow Configuration Steps
 class BaseWorkflowStep(BaseModel):
-    """Base model for a step in the user-defined workflow configuration."""
+    """Base model for a step in a user-defined workflow."""
 
     name: str
     depends_on: List[str] = Field(default_factory=list)
 
 
 class DMLWorkflowStep(BaseWorkflowStep):
-    """A workflow step to execute a DML transformation from a file."""
+    """Workflow step for executing a DML transformation from a file."""
 
     type: Literal["dml"] = "dml"
     dml_file: str
 
 
 class BulkLoadWorkflowStep(BaseWorkflowStep):
-    """A workflow step for bulk loading data from a cloud URI."""
+    """Workflow step for bulk loading data from a cloud storage URI."""
 
     type: Literal["bulk_load"] = "bulk_load"
     source_uri_pattern: str
@@ -40,7 +40,7 @@ class BulkLoadWorkflowStep(BaseWorkflowStep):
 
 
 class DDLWorkflowStep(BaseWorkflowStep):
-    """A workflow step to generate and execute DDL for a specific CDM version."""
+    """Workflow step for executing DDL based on a CDM specification."""
 
     type: Literal["ddl"] = "ddl"
     cdm_version: str
@@ -49,7 +49,7 @@ class DDLWorkflowStep(BaseWorkflowStep):
 
 
 class SQLWorkflowStep(BaseWorkflowStep):
-    """A workflow step for executing auxiliary SQL from a file (e.g., for QA)."""
+    """Workflow step for executing an auxiliary SQL script."""
 
     type: Literal["sql"] = "sql"
     sql_file: str
@@ -61,31 +61,32 @@ WorkflowStep = Annotated[
 ]
 
 
+# Part 2: User-Defined Workflow Configuration Root
 class WorkflowConfig(BaseModel):
-    """The root model for a user-defined workflow configuration."""
+    """Root model for a user-defined workflow configuration."""
 
     workflow_name: str
     concurrency: int = 1
     steps: List[WorkflowStep]
 
 
-# Part 2: Compiled Workflow Plan (Compiler Output)
+# Part 3: Compiled Workflow Plan (The Executable Artifact)
 class CompiledBaseStep(BaseModel):
-    """Base model for a step in the compiled, executable workflow plan."""
+    """Base model for a step in a compiled workflow plan."""
 
     name: str
     depends_on: List[str]
 
 
 class CompiledSQLStep(CompiledBaseStep):
-    """A compiled step containing one or more SQL statements to be executed."""
+    """A compiled step that contains fully rendered SQL statements."""
 
     type: Literal["sql"] = "sql"
     sql_statements: List[str]
 
 
 class CompiledBulkLoadStep(CompiledBaseStep):
-    """A compiled step containing resolved parameters for a bulk load operation."""
+    """A compiled step for a bulk load operation with resolved parameters."""
 
     type: Literal["bulk_load"] = "bulk_load"
     source_uri: str
@@ -95,17 +96,17 @@ class CompiledBulkLoadStep(CompiledBaseStep):
     load_options: Dict[str, Any]
 
 
-CompiledStep = Annotated[Union[CompiledSQLStep, CompiledBulkLoadStep], Field(discriminator="type")]
+CompiledStep = Annotated[
+    Union[CompiledSQLStep, CompiledBulkLoadStep],
+    Field(discriminator="type"),
+]
 
 
 class CompiledWorkflowPlan(BaseModel):
-    """
-    The executable artifact produced by the WorkflowCompiler. This is the
-    input for an orchestrator.
-    """
+    """The final, executable artifact produced by the WorkflowCompiler."""
 
     execution_id: UUID = Field(default_factory=uuid4)
     workflow_name: str
     concurrency: int
-    steps: Sequence[CompiledStep]
+    steps: List[CompiledStep]
     context_snapshot: Dict[str, Any]
