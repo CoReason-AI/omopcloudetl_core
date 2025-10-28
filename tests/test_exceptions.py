@@ -49,8 +49,12 @@ def test_sql_execution_error_attributes():
 def test_all_exceptions_can_be_raised():
     """Tests that all defined custom exceptions can be raised."""
     exceptions_to_test = [
-        ConfigurationError,
+        exc
+        for exc in OmopCloudEtlError.__subclasses__()
+        if exc is not SQLExecutionError  # Tested separately due to different constructor
     ]
+    assert len(exceptions_to_test) > 5  # Sanity check that we found subclasses
+
     for exc_class in exceptions_to_test:
         with pytest.raises(exc_class):
             raise exc_class(f"Testing {exc_class.__name__}")
