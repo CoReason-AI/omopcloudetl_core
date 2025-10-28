@@ -60,6 +60,24 @@ class ConcreteConnection(BaseConnection):
     ) -> LoadMetrics:
         return LoadMetrics(rows_inserted=100, rows_rejected=0)
 
+    def fetch_data(self, sql: str, params: Optional[Sequence[Any]] = None) -> Any:
+        return []
+
+    def table_exists(self, table_name: str, schema_name: str) -> bool:
+        return True
+
+    def post_load_maintenance(self, table_name: str, schema_name: str) -> None:
+        pass
+
+    def bulk_unload(
+        self,
+        target_uri: str,
+        target_format: str,
+        sql: str,
+        unload_options: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        pass
+
 
 @pytest.fixture
 def connection_config():
