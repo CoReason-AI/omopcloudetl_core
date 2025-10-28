@@ -8,6 +8,7 @@
 #
 # Source Code: https://github.com/CoReason-AI/omopcloudetl_core
 
+import os
 import pytest
 import requests
 from pathlib import Path
@@ -31,9 +32,11 @@ def spec_manager(tmp_path):
 
 def test_spec_manager_init_no_cache_dir(monkeypatch):
     """Tests that the SpecificationManager initializes without a cache_dir."""
-    monkeypatch.setattr(Path, "home", lambda: Path("/tmp"))
+    # os.path.join is used to create a platform-independent path
+    expected_path = os.path.join(os.path.expanduser("~"), ".omopcloudetl_core", "cache")
+    monkeypatch.setattr(Path, "home", lambda: Path(os.path.expanduser("~")))
     manager = SpecificationManager()
-    assert manager.cache.directory == "/tmp/.omopcloudetl_core/cache"
+    assert manager.cache.directory == expected_path
 
 
 def test_fetch_specification_from_remote_success(spec_manager, requests_mock):
