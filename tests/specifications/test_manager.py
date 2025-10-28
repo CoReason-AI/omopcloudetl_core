@@ -9,7 +9,10 @@
 # Source Code: https://github.com/CoReason-AI/omopcloudetl_core
 
 import pytest
+import requests
+from pathlib import Path
 from unittest.mock import patch, mock_open
+from tenacity import RetryError
 from omopcloudetl_core.specifications.manager import SpecificationManager, OHDSI_REPO_URL
 from omopcloudetl_core.exceptions import SpecificationError
 
@@ -24,6 +27,13 @@ VALID_CDM_CSV = (
 def spec_manager(tmp_path):
     """Provides a SpecificationManager instance with a temporary cache directory."""
     return SpecificationManager(cache_dir=tmp_path)
+
+
+def test_spec_manager_init_no_cache_dir(monkeypatch):
+    """Tests that the SpecificationManager initializes without a cache_dir."""
+    monkeypatch.setattr(Path, "home", lambda: Path("/tmp"))
+    manager = SpecificationManager()
+    assert manager.cache.directory == "/tmp/.omopcloudetl_core/cache"
 
 
 def test_fetch_specification_from_remote_success(spec_manager, requests_mock):
@@ -65,7 +75,7 @@ def test_fetch_remote_fails_with_network_error(spec_manager, requests_mock):
     """Tests that SpecificationError is raised on a network failure."""
     version = "5.6"
     url = f"{OHDSI_REPO_URL}/OMOP_CDM_v{version}_Field_Level.csv"
-    requests_mock.get(url, status_code=500)
+    requests_mock.get(url, exc=requests.exceptions.RequestException("Test error"))
 
     with pytest.raises(SpecificationError, match="Failed to fetch remote"):
         spec_manager.fetch_specification(version)
@@ -76,3 +86,24 @@ def test_fetch_local_fails_with_file_not_found(spec_manager):
     with pytest.raises(SpecificationError, match="not found"):
         # The mock_open patch is omitted, so open will raise FileNotFoundError
         spec_manager.fetch_specification("5.4", local_path="/non/existent/file.csv")
+
+
+def test_fetch_remote_fails_after_retries(spec_manager):
+    """Tests that SpecificationError is raised after all retry attempts fail."""
+    with patch(
+        "omopcloudetl_core.specifications.manager.SpecificationManager._fetch_url_content",
+        side_effect=RetryError(last_attempt="..."),
+    ):
+        with pytest.raises(SpecificationError, match="Failed to fetch remote"):
+            spec_manager.fetch_specification("5.7")
+
+
+def test_parsing_fails_with_generic_error(spec_manager):
+    """Tests that a generic error during parsing is wrapped in SpecificationError."""
+    with patch("builtins.open", mock_open(read_data=VALID_CDM_CSV)):
+        with patch(
+            "omopcloudetl_core.specifications.manager.SpecificationManager._parse_cdm_csv",
+            side_effect=Exception("Parsing error"),
+        ):
+            with pytest.raises(SpecificationError, match="Failed to parse"):
+                spec_manager.fetch_specification("5.8", local_path="/fake/path/spec.csv")

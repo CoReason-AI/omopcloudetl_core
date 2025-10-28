@@ -54,3 +54,19 @@ def test_setup_logging_is_idempotent(clean_logger):
     assert len(clean_logger.handlers) == 1
     setup_logging(logger_name=clean_logger.name)
     assert len(clean_logger.handlers) == 1
+
+
+def test_color_formatter_no_color():
+    """Tests that the formatter returns a plain message for levels without a color."""
+    formatter = ColorFormatter()
+    record = logging.LogRecord(
+        name="test",
+        level=33,  # A custom level with no color
+        pathname="test.py",
+        lineno=1,
+        msg="A message",
+        args=(),
+        exc_info=None,
+    )
+    formatted_message = formatter.format(record)
+    assert formatted_message == "A message"

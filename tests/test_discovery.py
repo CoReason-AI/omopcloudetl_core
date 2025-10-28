@@ -136,3 +136,97 @@ def test_component_instantiation_fails(mock_entry_points, discovery_manager):
 
     with pytest.raises(DiscoveryError, match="Failed to instantiate"):
         discovery_manager.get_connection(ConnectionConfig(provider_type="bad_conn"))
+
+
+@patch("omopcloudetl_core.discovery.entry_points")
+def test_discover_components_dict_api(mock_entry_points, discovery_manager):
+    """Tests component discovery with the deprecated dict-based API."""
+    mock_entry = MagicMock()
+    mock_entry.name = "mock_conn"
+    mock_entry.load.return_value = MockConnection
+    # Simulate the old dict-based return value
+    mock_entry_points.return_value = {"omopcloudetl.providers": [mock_entry]}
+    if hasattr(mock_entry_points.return_value, "select"):
+        delattr(mock_entry_points.return_value, "select")
+
+    config = ConnectionConfig(provider_type="mock_conn")
+    connection = discovery_manager.get_connection(config)
+    assert isinstance(connection, MockConnection)
+
+
+@patch("omopcloudetl_core.discovery.entry_points")
+def test_entry_point_load_fails(mock_entry_points, discovery_manager):
+    """Tests that a DiscoveryError is raised if an entry point fails to load."""
+    mock_entry = MagicMock()
+    mock_entry.name = "failing_loader"
+    mock_entry.load.side_effect = ImportError("Load failed")
+    mock_entry_points.return_value.select.return_value = [mock_entry]
+
+    with pytest.raises(DiscoveryError, match="Failed to load component"):
+        discovery_manager.get_connection(ConnectionConfig(provider_type="failing_loader"))
+
+
+@patch("omopcloudetl_core.discovery.entry_points")
+def test_secrets_provider_instantiation_fails(mock_entry_points, discovery_manager):
+    """Tests that a DiscoveryError is raised if a secrets provider fails to instantiate."""
+    BadProvider = MagicMock(side_effect=Exception("Init failed"))
+    mock_entry = MagicMock()
+    mock_entry.name = "bad_provider"
+    mock_entry.load.return_value = BadProvider
+    mock_entry_points.return_value.select.return_value = [mock_entry]
+
+    with pytest.raises(DiscoveryError, match="Failed to instantiate secrets provider"):
+        discovery_manager.get_secrets_provider(SecretsConfig(provider_type="bad_provider"))
+
+
+@patch("omopcloudetl_core.discovery.entry_points")
+def test_orchestrator_instantiation_fails(mock_entry_points, discovery_manager):
+    """Tests that a DiscoveryError is raised if an orchestrator fails to instantiate."""
+    BadOrchestrator = MagicMock(side_effect=Exception("Init failed"))
+    mock_entry = MagicMock()
+    mock_entry.name = "bad_orchestrator"
+    mock_entry.load.return_value = BadOrchestrator
+    mock_entry_points.return_value.select.return_value = [mock_entry]
+
+    with pytest.raises(DiscoveryError, match="Failed to instantiate orchestrator"):
+        discovery_manager.get_orchestrator(OrchestratorConfig(type="bad_orchestrator"))
+
+
+def test_get_generators_missing_attributes(discovery_manager):
+    """Tests that a DiscoveryError is raised if the connection is missing generator attributes."""
+    bad_connection_instance = MagicMock()
+    # To properly test this, we need to remove the attributes from the instance
+    # that `hasattr` will check. We can't delete from the MagicMock class itself.
+    delattr(bad_connection_instance, "SQL_GENERATOR_CLASS")
+    delattr(bad_connection_instance, "DDL_GENERATOR_CLASS")
+
+    with pytest.raises(DiscoveryError, match="does not define"):
+        discovery_manager.get_generators(bad_connection_instance)
+
+
+@patch("omopcloudetl_core.discovery.entry_points")
+def test_secrets_provider_not_found(mock_entry_points, discovery_manager):
+    """Tests that a DiscoveryError is raised if the secrets provider is not found."""
+    mock_entry_points.return_value.select.return_value = []
+    with pytest.raises(DiscoveryError, match="not found"):
+        discovery_manager.get_secrets_provider(SecretsConfig(provider_type="non_existent"))
+
+
+@patch("omopcloudetl_core.discovery.entry_points")
+def test_discover_components_iterable_fallback(mock_entry_points, discovery_manager):
+    """Tests component discovery with the iterable fallback."""
+    mock_entry = MagicMock()
+    mock_entry.name = "mock_conn"
+    mock_entry.group = "omopcloudetl.providers"
+    mock_entry.load.return_value = MockConnection
+    # Simulate an iterable return value that is not a dict and has no 'select'
+    mock_entry_points.return_value = [mock_entry]
+    if hasattr(mock_entry_points.return_value, "select"):
+        delattr(mock_entry_points.return_value, "select")
+
+    # This test is a bit tricky as we need to filter by group manually
+    # The discovery manager will load all entry points, so we need to ensure
+    # that at least one is for the correct group.
+    config = ConnectionConfig(provider_type="mock_conn")
+    connection = discovery_manager.get_connection(config)
+    assert isinstance(connection, MockConnection)

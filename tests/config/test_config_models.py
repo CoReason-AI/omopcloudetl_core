@@ -44,6 +44,17 @@ def test_connection_config_env_vars():
             ConnectionConfig()
 
 
+def test_connection_config_warns_on_both_passwords():
+    """Tests that a warning is issued when both password and password_secret_id are provided."""
+    with pytest.warns(UserWarning, match="Both 'password' and 'password_secret_id' are provided"):
+        ConnectionConfig(
+            provider_type="test",
+            user="test",
+            password="password",
+            password_secret_id="secret",
+        )
+
+
 class TestProjectConfig:
     """Test suite for the ProjectConfig model."""
 

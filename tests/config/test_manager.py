@@ -79,3 +79,12 @@ def test_load_invalid_yaml(config_manager):
         with patch("pathlib.Path.is_file", return_value=True):
             with pytest.raises(ConfigurationError):
                 config_manager.load_project_config(Path("invalid.yml"))
+
+
+def test_load_non_dict_yaml(config_manager):
+    """Tests that a ConfigurationError is raised for YAML that is not a dictionary."""
+    non_dict_yaml = "- item1\n- item2"
+    with patch("builtins.open", mock_open(read_data=non_dict_yaml)):
+        with patch("pathlib.Path.is_file", return_value=True):
+            with pytest.raises(ConfigurationError, match="not a valid dictionary"):
+                config_manager.load_project_config(Path("invalid.yml"))
