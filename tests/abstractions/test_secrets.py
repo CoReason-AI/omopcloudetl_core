@@ -13,10 +13,12 @@ from unittest.mock import patch
 from omopcloudetl_core.abstractions.secrets import EnvironmentSecretsProvider
 from omopcloudetl_core.exceptions import SecretAccessError
 
+
 @pytest.fixture
 def secrets_provider():
     """Fixture to provide an instance of the EnvironmentSecretsProvider."""
     return EnvironmentSecretsProvider()
+
 
 def test_get_secret_success(secrets_provider, monkeypatch):
     """Tests successfully retrieving a secret from an environment variable."""
@@ -25,6 +27,7 @@ def test_get_secret_success(secrets_provider, monkeypatch):
     monkeypatch.setenv(secret_key, secret_value)
 
     assert secrets_provider.get_secret(secret_key) == secret_value
+
 
 def test_get_secret_not_found(secrets_provider, monkeypatch):
     """Tests that a SecretAccessError is raised when the secret is not found."""
@@ -38,7 +41,8 @@ def test_get_secret_not_found(secrets_provider, monkeypatch):
     assert secret_key in str(excinfo.value)
     assert "Secret not found" in str(excinfo.value)
 
-@patch('os.getenv')
+
+@patch("os.getenv")
 def test_get_secret_with_mock(mock_getenv, secrets_provider):
     """Tests the provider by mocking os.getenv."""
     secret_key = "MOCKED_SECRET"

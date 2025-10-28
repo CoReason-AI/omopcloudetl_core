@@ -17,29 +17,48 @@ from omopcloudetl_core.abstractions.orchestrators import BaseOrchestrator
 from omopcloudetl_core.abstractions.secrets import BaseSecretsProvider, EnvironmentSecretsProvider
 from omopcloudetl_core.config.models import ConnectionConfig, OrchestratorConfig, SecretsConfig
 
+
 class MockConnection(BaseConnection):
     SQL_GENERATOR_CLASS = MagicMock()
     DDL_GENERATOR_CLASS = MagicMock()
     provider_type = "mock_conn"
-    def __init__(self, config): super().__init__(config)
-    def scalability_tier(self): return "TIER_1"
-    def connect(self): pass
-    def close(self): pass
-    def execute_sql(self, sql, params=None, commit=True): pass
-    def bulk_load(self, source_uri, target_schema, target_table, source_format_options, load_options): pass
+
+    def __init__(self, config):
+        super().__init__(config)
+
+    def scalability_tier(self):
+        return "TIER_1"
+
+    def connect(self):
+        pass
+
+    def close(self):
+        pass
+
+    def execute_sql(self, sql, params=None, commit=True):
+        pass
+
+    def bulk_load(self, source_uri, target_schema, target_table, source_format_options, load_options):
+        pass
+
 
 class MockOrchestrator(BaseOrchestrator):
-    def execute_plan(self, plan, dry_run=False, resume=False): pass
+    def execute_plan(self, plan, dry_run=False, resume=False):
+        pass
+
 
 class MockSecretsProvider(BaseSecretsProvider):
-    def get_secret(self, secret_identifier: str) -> str: return "secret"
+    def get_secret(self, secret_identifier: str) -> str:
+        return "secret"
+
 
 @pytest.fixture
 def discovery_manager():
     """Provides a DiscoveryManager instance."""
     return DiscoveryManager()
 
-@patch('omopcloudetl_core.discovery.entry_points')
+
+@patch("omopcloudetl_core.discovery.entry_points")
 def test_get_connection_success(mock_entry_points, discovery_manager):
     """Tests successfully discovering and instantiating a connection provider."""
     mock_entry = MagicMock()
@@ -51,7 +70,8 @@ def test_get_connection_success(mock_entry_points, discovery_manager):
     connection = discovery_manager.get_connection(config)
     assert isinstance(connection, MockConnection)
 
-@patch('omopcloudetl_core.discovery.entry_points')
+
+@patch("omopcloudetl_core.discovery.entry_points")
 def test_get_orchestrator_success(mock_entry_points, discovery_manager):
     """Tests successfully discovering and instantiating an orchestrator."""
     mock_entry = MagicMock()
@@ -63,7 +83,8 @@ def test_get_orchestrator_success(mock_entry_points, discovery_manager):
     orchestrator = discovery_manager.get_orchestrator(config)
     assert isinstance(orchestrator, MockOrchestrator)
 
-@patch('omopcloudetl_core.discovery.entry_points')
+
+@patch("omopcloudetl_core.discovery.entry_points")
 def test_get_secrets_provider_success(mock_entry_points, discovery_manager):
     """Tests successfully discovering and instantiating a secrets provider."""
     mock_entry = MagicMock()
@@ -75,12 +96,14 @@ def test_get_secrets_provider_success(mock_entry_points, discovery_manager):
     provider = discovery_manager.get_secrets_provider(config)
     assert isinstance(provider, MockSecretsProvider)
 
+
 def test_get_default_secrets_provider(discovery_manager):
     """Tests that the default environment secrets provider is returned when no config is provided."""
     provider = discovery_manager.get_secrets_provider(None)
     assert isinstance(provider, EnvironmentSecretsProvider)
 
-@patch('omopcloudetl_core.discovery.entry_points')
+
+@patch("omopcloudetl_core.discovery.entry_points")
 def test_component_not_found(mock_entry_points, discovery_manager):
     """Tests that a DiscoveryError is raised when a component is not found."""
     mock_entry_points.return_value.select.return_value = []
@@ -89,7 +112,8 @@ def test_component_not_found(mock_entry_points, discovery_manager):
     with pytest.raises(DiscoveryError, match="not found"):
         discovery_manager.get_orchestrator(OrchestratorConfig(type="non_existent"))
 
-@patch('omopcloudetl_core.discovery.entry_points')
+
+@patch("omopcloudetl_core.discovery.entry_points")
 def test_component_instantiation_fails(mock_entry_points, discovery_manager):
     """Tests that a DiscoveryError is raised if component instantiation fails."""
     BadConnection = MagicMock(side_effect=Exception("Init failed"))

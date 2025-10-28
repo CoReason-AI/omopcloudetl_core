@@ -13,6 +13,7 @@ import pytest
 from io import StringIO
 from omopcloudetl_core.logging import setup_logging, ColorFormatter
 
+
 @pytest.fixture
 def clean_logger():
     """Fixture to get a clean logger instance for each test."""
@@ -24,18 +25,18 @@ def clean_logger():
     if logger.hasHandlers():
         logger.handlers.clear()
 
+
 def test_setup_logging_returns_logger_instance(clean_logger):
     """Tests that setup_logging returns a valid logger instance."""
     logger = setup_logging(level=logging.DEBUG, logger_name=clean_logger.name)
     assert isinstance(logger, logging.Logger)
 
+
 def test_log_format_includes_thread_name(clean_logger):
     """Tests that the log format correctly includes the thread name."""
     log_stream = StringIO()
     handler = logging.StreamHandler(log_stream)
-    formatter = ColorFormatter(
-        "%(asctime)s - %(name)s - [%(threadName)s] - %(levelname)s - %(message)s"
-    )
+    formatter = ColorFormatter("%(asctime)s - %(name)s - [%(threadName)s] - %(levelname)s - %(message)s")
     handler.setFormatter(formatter)
     clean_logger.addHandler(handler)
     clean_logger.setLevel(logging.INFO)
@@ -45,6 +46,7 @@ def test_log_format_includes_thread_name(clean_logger):
 
     # The default thread name is 'MainThread'
     assert "[MainThread]" in log_output
+
 
 def test_setup_logging_is_idempotent(clean_logger):
     """Tests that calling setup_logging multiple times does not add duplicate handlers."""

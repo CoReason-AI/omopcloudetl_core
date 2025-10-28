@@ -17,6 +17,7 @@ from omopcloudetl_core.config.models import (
     OrchestratorConfig,
 )
 
+
 def test_connection_config_loads_from_env(monkeypatch):
     """Tests that ConnectionConfig correctly loads settings from environment variables."""
     monkeypatch.setenv("OMOPCLOUDETL_CONN_PROVIDER_TYPE", "test_provider")
@@ -28,12 +29,14 @@ def test_connection_config_loads_from_env(monkeypatch):
     assert config.host == "local.test"
     assert config.user == "test_user"
 
+
 def test_connection_config_password_is_secret():
     """Tests that the 'password' field is treated as a Pydantic SecretStr."""
     password_value = "mysecret"
     config = ConnectionConfig(provider_type="test", password=password_value)
     assert isinstance(config.password, SecretStr)
     assert config.password.get_secret_value() == password_value
+
 
 def test_project_config_validation():
     """Tests the successful validation of a complete ProjectConfig model."""
@@ -48,6 +51,7 @@ def test_project_config_validation():
     assert isinstance(project_config.orchestrator, OrchestratorConfig)
     assert isinstance(project_config.secrets, SecretsConfig)
     assert project_config.schemas["target"] == "cdm"
+
 
 def test_project_config_missing_required_fields():
     """Tests that validation fails if required fields are missing."""

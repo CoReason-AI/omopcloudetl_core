@@ -20,10 +20,17 @@ from omopcloudetl_core.models.workflow import (
 VALID_WORKFLOW = {
     "workflow_name": "test_workflow",
     "steps": [
-        {"name": "load_data", "type": "bulk_load", "source_uri_pattern": "s3://bucket/data", "target_table": "person", "target_schema_ref": "cdm"},
+        {
+            "name": "load_data",
+            "type": "bulk_load",
+            "source_uri_pattern": "s3://bucket/data",
+            "target_table": "person",
+            "target_schema_ref": "cdm",
+        },
         {"name": "transform_person", "type": "dml", "dml_file": "person.dml", "depends_on": ["load_data"]},
     ],
 }
+
 
 def test_workflow_config_validation_success():
     """Tests that a valid workflow configuration is parsed correctly."""
@@ -33,12 +40,14 @@ def test_workflow_config_validation_success():
     assert isinstance(config.steps[1], DMLWorkflowStep)
     assert config.steps[1].depends_on == ["load_data"]
 
+
 def test_workflow_config_invalid_step_type():
     """Tests that a workflow with an invalid step type fails validation."""
     invalid_workflow = VALID_WORKFLOW.copy()
     invalid_workflow["steps"] = [{"name": "bad_step", "type": "unknown"}]
     with pytest.raises(ValidationError):
         WorkflowConfig.model_validate(invalid_workflow)
+
 
 def test_compiled_workflow_plan_defaults():
     """Tests the default values of the CompiledWorkflowPlan."""

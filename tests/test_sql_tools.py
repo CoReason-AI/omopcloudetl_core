@@ -16,6 +16,7 @@ from omopcloudetl_core.sql_tools import (
 )
 from jinja2.exceptions import UndefinedError
 
+
 def test_render_jinja_template_success():
     """Tests that a Jinja2 template is rendered correctly."""
     template = "SELECT * FROM {{ schemas.source }}.person;"
@@ -23,12 +24,14 @@ def test_render_jinja_template_success():
     rendered = render_jinja_template(template, context)
     assert rendered == "SELECT * FROM raw_data.person;"
 
+
 def test_render_jinja_template_undefined_variable():
     """Tests that rendering fails if a variable is undefined."""
     template = "SELECT * FROM {{ schemas.undefined }};"
     context = {"schemas": {"source": "raw"}}
     with pytest.raises(UndefinedError):
         render_jinja_template(template, context)
+
 
 def test_apply_query_tag():
     """Tests that a query tag is correctly prepended to a SQL statement."""
@@ -38,6 +41,7 @@ def test_apply_query_tag():
     assert "/* OmopCloudEtlContext:" in tagged_sql
     assert '"step": "test"' in tagged_sql
     assert sql in tagged_sql
+
 
 def test_split_sql_script():
     """Tests that a SQL script is correctly split into individual statements."""

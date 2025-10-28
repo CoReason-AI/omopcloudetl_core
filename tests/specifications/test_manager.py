@@ -19,10 +19,12 @@ VALID_CDM_CSV = (
     "PERSON,GENDER_CONCEPT_ID,No,Yes,INTEGER"
 )
 
+
 @pytest.fixture
 def spec_manager(tmp_path):
     """Provides a SpecificationManager instance with a temporary cache directory."""
     return SpecificationManager(cache_dir=tmp_path)
+
 
 def test_fetch_specification_from_remote_success(spec_manager, requests_mock):
     """Tests successfully fetching and parsing a remote CDM specification."""
@@ -37,6 +39,7 @@ def test_fetch_specification_from_remote_success(spec_manager, requests_mock):
     assert spec.tables["person"].fields[0].name == "person_id"
     assert spec.tables["person"].primary_key == ["person_id"]
 
+
 def test_fetch_specification_from_local_file_success(spec_manager):
     """Tests successfully loading a specification from a local file."""
     version = "5.4-local"
@@ -44,6 +47,7 @@ def test_fetch_specification_from_local_file_success(spec_manager):
     with patch("builtins.open", mock_open(read_data=VALID_CDM_CSV)):
         spec = spec_manager.fetch_specification(version, local_path=local_path)
         assert "person" in spec.tables
+
 
 def test_fetch_specification_caching(spec_manager, requests_mock):
     """Tests that specifications are cached after the first fetch."""
@@ -56,6 +60,7 @@ def test_fetch_specification_caching(spec_manager, requests_mock):
 
     assert requests_mock.call_count == 1
 
+
 def test_fetch_remote_fails_with_network_error(spec_manager, requests_mock):
     """Tests that SpecificationError is raised on a network failure."""
     version = "5.6"
@@ -64,6 +69,7 @@ def test_fetch_remote_fails_with_network_error(spec_manager, requests_mock):
 
     with pytest.raises(SpecificationError, match="Failed to fetch remote"):
         spec_manager.fetch_specification(version)
+
 
 def test_fetch_local_fails_with_file_not_found(spec_manager):
     """Tests that SpecificationError is raised if the local file does not exist."""

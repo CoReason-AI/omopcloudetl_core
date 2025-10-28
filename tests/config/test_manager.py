@@ -14,10 +14,12 @@ from unittest.mock import patch, mock_open
 from omopcloudetl_core.config.manager import ConfigManager
 from omopcloudetl_core.exceptions import ConfigurationError
 
+
 @pytest.fixture
 def config_manager():
     """Provides a ConfigManager instance."""
     return ConfigManager()
+
 
 VALID_YAML = """
 connection:
@@ -40,6 +42,7 @@ schemas:
   source: 'raw'
 """
 
+
 def test_load_project_config_success(config_manager):
     """Tests successfully loading a valid YAML configuration file."""
     with patch("builtins.open", mock_open(read_data=VALID_YAML)) as mock_file:
@@ -48,6 +51,7 @@ def test_load_project_config_success(config_manager):
             assert config.connection.provider_type == "test"
             assert config.schemas["source"] == "raw"
             mock_file.assert_called_once_with(Path("dummy/path/config.yml"), "r")
+
 
 def test_load_project_config_resolves_secret(config_manager, monkeypatch):
     """Tests that the ConfigManager correctly resolves secrets."""
@@ -60,11 +64,13 @@ def test_load_project_config_resolves_secret(config_manager, monkeypatch):
             config = config_manager.load_project_config(Path("config.yml"))
             assert config.connection.password.get_secret_value() == secret_value
 
+
 def test_load_config_file_not_found(config_manager):
     """Tests that a ConfigurationError is raised for a missing config file."""
     with patch("pathlib.Path.is_file", return_value=False):
         with pytest.raises(ConfigurationError, match="not found"):
             config_manager.load_project_config(Path("non_existent_file.yml"))
+
 
 def test_load_invalid_yaml(config_manager):
     """Tests that a ConfigurationError is raised for invalid YAML."""

@@ -15,10 +15,12 @@ from omopcloudetl_core.exceptions import (
     ConfigurationError,
 )
 
+
 def test_base_exception_can_be_raised():
     """Tests that the base exception can be raised."""
     with pytest.raises(OmopCloudEtlError):
         raise OmopCloudEtlError("A base error occurred.")
+
 
 def test_sql_execution_error_attributes():
     """Tests that SQLExecutionError correctly stores its custom attributes."""
@@ -42,6 +44,7 @@ def test_sql_execution_error_attributes():
     assert step_name in str(exc)
     assert query_id in str(exc)
     assert failed_sql in str(exc)
+
 
 def test_all_exceptions_can_be_raised():
     """Tests that all defined custom exceptions can be raised."""

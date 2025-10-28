@@ -30,6 +30,7 @@ VALID_SPEC = {
     },
 }
 
+
 def test_cdm_specification_validation_success():
     """Tests that a valid CDM specification is parsed correctly."""
     spec = CDMSpecification.model_validate(VALID_SPEC)
@@ -38,17 +39,20 @@ def test_cdm_specification_validation_success():
     assert isinstance(spec.tables["person"], CDMTableSpec)
     assert isinstance(spec.tables["person"].fields[0], CDMFieldSpec)
 
+
 def test_cdm_table_spec_defaults():
     """Tests that default factory fields are created."""
     table_spec = CDMTableSpec(name="test_table", fields=[], primary_key=[])
     assert table_spec.optimizations == {}
     assert table_spec.foreign_keys == []
 
+
 def test_cdm_spec_missing_required_field():
     """Tests that validation fails if a required field is missing."""
-    invalid_spec = {"version": "5.4"} # Missing 'tables'
+    invalid_spec = {"version": "5.4"}  # Missing 'tables'
     with pytest.raises(ValidationError):
         CDMSpecification.model_validate(invalid_spec)
+
 
 def test_cdm_field_spec_missing_type():
     """Tests that validation fails if a field is missing its type."""
