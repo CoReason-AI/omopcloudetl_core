@@ -269,7 +269,9 @@ def test_compile_sql_file_not_found(MockSpecManager, MockDiscoveryManager, mock_
 
 @patch("omopcloudetl_core.compilation.compiler.DiscoveryManager")
 @patch("omopcloudetl_core.compilation.compiler.SpecificationManager")
-def test_dag_validation_undefined_dependency(MockSpecManager, MockDiscoveryManager, mock_project_config, mock_connection):
+def test_dag_validation_undefined_dependency(
+    MockSpecManager, MockDiscoveryManager, mock_project_config, mock_connection
+):
     """Test that compilation fails with an undefined dependency."""
     MockDiscoveryManager.return_value.get_generators.return_value = (MagicMock(), MagicMock())
     compiler = WorkflowCompiler(mock_project_config, mock_connection)
@@ -295,7 +297,9 @@ def test_compile_dml_file_not_found(MockSpecManager, MockDiscoveryManager, mock_
     )
     m_open = mock_open()
     m_open.side_effect = IOError("File not found")
-    with patch("builtins.open", m_open), pytest.raises(DMLValidationError, match="Failed to load, render, or validate DML file"):
+    with patch("builtins.open", m_open), pytest.raises(
+        DMLValidationError, match="Failed to load, render, or validate DML file"
+    ):
         compiler.compile(workflow_config, Path("/workflows"))
 
 
@@ -327,7 +331,9 @@ def test_compile_dml_file_is_a_directory(MockSpecManager, MockDiscoveryManager, 
     )
     m_open = mock_open()
     m_open.side_effect = IsADirectoryError("Is a directory")
-    with patch("builtins.open", m_open), pytest.raises(DMLValidationError, match="Failed to load, render, or validate DML file"):
+    with patch("builtins.open", m_open), pytest.raises(
+        DMLValidationError, match="Failed to load, render, or validate DML file"
+    ):
         compiler.compile(workflow_config, Path("/workflows"))
 
 
@@ -338,7 +344,9 @@ def test_compile_sql_step_success(MockSpecManager, MockDiscoveryManager, mock_pr
     MockDiscoveryManager.return_value.get_generators.return_value = (MagicMock(), MagicMock())
     compiler = WorkflowCompiler(mock_project_config, mock_connection)
 
-    sql_content = "SELECT * FROM {{ schemas.source }}.my_table; INSERT INTO {{ schemas.target }}.another_table VALUES (1);"
+    sql_content = (
+        "SELECT * FROM {{ schemas.source }}.my_table; INSERT INTO {{ schemas.target }}.another_table VALUES (1);"
+    )
     workflow_config = WorkflowConfig(
         workflow_name="test_wf",
         steps=[SQLWorkflowStep(name="sql_step", sql_file="my_query.sql")],

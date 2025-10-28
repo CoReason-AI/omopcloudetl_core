@@ -111,7 +111,7 @@ class MetadataManager:
 
         sql = f"""
         UPDATE {self.METADATA_TABLE}
-        SET {', '.join(update_clauses)}
+        SET {", ".join(update_clauses)}
         WHERE execution_id = ? AND step_name = ? AND status = 'RUNNING';
         """
         tagged_sql = apply_query_tag(
