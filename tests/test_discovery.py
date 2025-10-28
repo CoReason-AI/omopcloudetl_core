@@ -41,6 +41,18 @@ class MockConnection(BaseConnection):
     def bulk_load(self, source_uri, target_schema, target_table, source_format_options, load_options):
         pass
 
+    def fetch_data(self, sql, params=None):
+        pass
+
+    def table_exists(self, table_name, schema_name):
+        pass
+
+    def post_load_maintenance(self, table_name, schema_name):
+        pass
+
+    def bulk_unload(self, target_uri, target_format, sql, unload_options=None):
+        pass
+
 
 class MockOrchestrator(BaseOrchestrator):
     def execute_plan(self, plan, dry_run=False, resume=False):

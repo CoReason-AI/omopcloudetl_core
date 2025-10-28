@@ -60,6 +60,64 @@ class BaseConnection(ABC):
     # fmt: on
 
     @abstractmethod
+    def fetch_data(self, sql: str, params: Optional[Sequence[Any]] = None) -> Any:  # pragma: no cover
+        """
+        Fetches data from the database using a SQL query.
+
+        Args:
+            sql: The SQL query to execute.
+            params: An optional sequence of parameters for the query.
+
+        Returns:
+            The fetched data in a suitable format (e.g., a list of tuples or a DataFrame).
+        """
+        pass
+
+    @abstractmethod
+    def table_exists(self, table_name: str, schema_name: str) -> bool:  # pragma: no cover
+        """
+        Checks if a table exists in the database.
+
+        Args:
+            table_name: The name of the table.
+            schema_name: The name of the schema.
+
+        Returns:
+            True if the table exists, False otherwise.
+        """
+        pass
+
+    @abstractmethod
+    def post_load_maintenance(self, table_name: str, schema_name: str) -> None:  # pragma: no cover
+        """
+        Performs post-load maintenance tasks, such as updating statistics or optimizing indexes.
+
+        Args:
+            table_name: The name of the table.
+            schema_name: The name of the schema.
+        """
+        pass
+
+    @abstractmethod
+    def bulk_unload(
+        self,
+        target_uri: str,
+        target_format: str,
+        sql: str,
+        unload_options: Optional[Dict[str, Any]] = None,
+    ) -> None:  # pragma: no cover
+        """
+        Unloads data from a SQL query to a specified URI.
+
+        Args:
+            target_uri: The destination URI (e.g., 's3://bucket/path/').
+            target_format: The format of the unloaded data (e.g., 'parquet', 'csv').
+            sql: The SQL query to execute for the unload.
+            unload_options: Additional options for the unload operation.
+        """
+        pass
+
+    @abstractmethod
     def close(self) -> None:  # pragma: no cover
         """Closes the database connection."""
         pass
