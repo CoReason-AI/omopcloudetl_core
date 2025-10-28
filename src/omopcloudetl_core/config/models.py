@@ -48,13 +48,3 @@ class ProjectConfig(BaseModel):
     orchestrator: OrchestratorConfig
     schemas: Dict[str, str]
     secrets: Optional[SecretsConfig] = None
-
-    @model_validator(mode="after")
-    def check_secrets_provider_configured(self) -> "ProjectConfig":
-        """Ensure that if a secret is used for the password, a secrets provider is configured."""
-        if self.connection.password_secret_id and not self.connection.password:
-            if not self.secrets:
-                raise ValueError(
-                    "A 'secrets' provider must be configured when 'connection.password_secret_id' is used."
-                )
-        return self

@@ -51,21 +51,6 @@ class TestProjectConfig:
         with pytest.raises(ValidationError):
             ProjectConfig(**config_data)
 
-    def test_password_secret_id_without_secrets_config_raises_error(self):
-        """
-        Tests the validator that ensures if a password_secret_id is given,
-        a secrets provider must also be configured.
-        """
-        config_data = {
-            "connection": {"provider_type": "test", "password_secret_id": "my-secret"},
-            "orchestrator": {"type": "local"},
-            "schemas": {},
-        }
-        with pytest.raises(
-            ValidationError,
-            match="A 'secrets' provider must be configured when 'connection.password_secret_id' is used.",
-        ):
-            ProjectConfig(**config_data)
 
     def test_password_secret_id_with_secrets_config_is_valid(self):
         """
