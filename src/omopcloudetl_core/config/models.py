@@ -38,11 +38,15 @@ class ConnectionConfig(BaseSettings):
     password_secret_id: Optional[str] = None
     extra_settings: Dict[str, Any] = {}
 
-    model_config = SettingsConfigDict(env_prefix="OMOPCLOUDETL_CONN_", env_nested_delimiter="__", case_sensitive=False)
+    model_config = SettingsConfigDict(
+        env_prefix="OMOPCLOUDETL_CONN_",
+        env_nested_delimiter="__",
+        case_sensitive=False,
+    )
 
 
 class ProjectConfig(BaseModel):
-    """The root configuration model for an omopcloudetl project."""
+    """Root configuration model for the project."""
 
     connection: ConnectionConfig
     orchestrator: OrchestratorConfig

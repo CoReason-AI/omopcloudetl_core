@@ -8,55 +8,53 @@
 #
 # Source Code: https://github.com/CoReason-AI/omopcloudetl_core
 
-import pytest
+
 from pydantic import ValidationError, SecretStr
-from omopcloudetl_core.config.models import (
-    ConnectionConfig,
-    ProjectConfig,
-    SecretsConfig,
-    OrchestratorConfig,
-)
+import pytest
+from omopcloudetl_core.config.models import ConnectionConfig, ProjectConfig, SecretsConfig
 
 
-def test_connection_config_loads_from_env(monkeypatch):
-    """Tests that ConnectionConfig correctly loads settings from environment variables."""
-    monkeypatch.setenv("OMOPCLOUDETL_CONN_PROVIDER_TYPE", "test_provider")
-    monkeypatch.setenv("OMOPCLOUDETL_CONN_HOST", "local.test")
-    monkeypatch.setenv("OMOPCLOUDETL_CONN_USER", "test_user")
-
-    config = ConnectionConfig()
-    assert config.provider_type == "test_provider"
-    assert config.host == "local.test"
-    assert config.user == "test_user"
-
-
-def test_connection_config_password_is_secret():
-    """Tests that the 'password' field is treated as a Pydantic SecretStr."""
-    password_value = "mysecret"
-    config = ConnectionConfig(provider_type="test", password=password_value)
-    assert isinstance(config.password, SecretStr)
-    assert config.password.get_secret_value() == password_value
-
-
-def test_project_config_validation():
-    """Tests the successful validation of a complete ProjectConfig model."""
+def test_project_config_creation():
+    """Tests the successful creation of a ProjectConfig model."""
     config_data = {
-        "connection": {"provider_type": "test_db"},
-        "orchestrator": {"type": "local_test"},
+        "connection": {"provider_type": "test_provider"},
+        "orchestrator": {"type": "test_orchestrator", "configuration": {}},
         "schemas": {"source": "raw", "target": "cdm"},
-        "secrets": {"provider_type": "env"},
     }
-    project_config = ProjectConfig.model_validate(config_data)
-    assert isinstance(project_config.connection, ConnectionConfig)
-    assert isinstance(project_config.orchestrator, OrchestratorConfig)
-    assert isinstance(project_config.secrets, SecretsConfig)
-    assert project_config.schemas["target"] == "cdm"
+    project_config = ProjectConfig(**config_data)
+    assert project_config.connection.provider_type == "test_provider"
+    assert project_config.orchestrator.type == "test_orchestrator"
+    assert project_config.schemas["source"] == "raw"
 
 
-def test_project_config_missing_required_fields():
-    """Tests that validation fails if required fields are missing."""
+def test_project_config_missing_fields():
+    """Tests that ProjectConfig raises a validation error for missing required fields."""
     with pytest.raises(ValidationError):
-        ProjectConfig.model_validate({"connection": {"provider_type": "test"}})
+        ProjectConfig(
+            connection={"provider_type": "test_provider"},
+            schemas={"source": "raw"},
+        )
 
-    with pytest.raises(ValidationError):
-        ProjectConfig.model_validate({"orchestrator": {"type": "test"}})
+
+def test_connection_config_env_vars(monkeypatch):
+    """Tests that ConnectionConfig correctly loads settings from environment variables."""
+    monkeypatch.setenv("OMOPCLOUDETL_CONN_HOST", "db.example.com")
+    monkeypatch.setenv("OMOPCLOUDETL_CONN_USER", "testuser")
+    monkeypatch.setenv("OMOPCLOUDETL_CONN_PASSWORD", "supersecret")
+
+    conn_config = ConnectionConfig(provider_type="test_provider")
+    assert conn_config.host == "db.example.com"
+    assert conn_config.user == "testuser"
+    assert conn_config.password.get_secret_value() == "supersecret"
+    assert isinstance(conn_config.password, SecretStr)
+
+
+def test_secrets_config_creation():
+    """Tests the successful creation of a SecretsConfig model."""
+    secrets_data = {
+        "provider_type": "env",
+        "configuration": {"prefix": "MY_APP_"},
+    }
+    secrets_config = SecretsConfig(**secrets_data)
+    assert secrets_config.provider_type == "env"
+    assert secrets_config.configuration["prefix"] == "MY_APP_"
