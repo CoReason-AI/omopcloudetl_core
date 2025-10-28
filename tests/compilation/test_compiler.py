@@ -305,7 +305,9 @@ def test_compile_dml_file_not_found(MockSpecManager, MockDiscoveryManager, mock_
 
 @patch("omopcloudetl_core.compilation.compiler.DiscoveryManager")
 @patch("omopcloudetl_core.compilation.compiler.SpecificationManager")
-def test_compile_sql_file_is_a_directory(MockSpecManager, MockDiscoveryManager, mock_project_config, mock_connection):
+def test_compile_sql_file_is_a_directory(
+    MockSpecManager, MockDiscoveryManager, mock_project_config, mock_connection
+):
     """Test CompilationError when the SQL file path is a directory."""
     MockDiscoveryManager.return_value.get_generators.return_value = (MagicMock(), MagicMock())
     compiler = WorkflowCompiler(mock_project_config, mock_connection)
@@ -339,7 +341,9 @@ def test_compile_dml_file_is_a_directory(MockSpecManager, MockDiscoveryManager, 
 
 @patch("omopcloudetl_core.compilation.compiler.DiscoveryManager")
 @patch("omopcloudetl_core.compilation.compiler.SpecificationManager")
-def test_compile_sql_step_success(MockSpecManager, MockDiscoveryManager, mock_project_config, mock_connection):
+def test_compile_sql_step_success(
+    MockSpecManager, MockDiscoveryManager, mock_project_config, mock_connection
+):
     """Test the successful compilation of a SQL workflow step."""
     MockDiscoveryManager.return_value.get_generators.return_value = (MagicMock(), MagicMock())
     compiler = WorkflowCompiler(mock_project_config, mock_connection)
