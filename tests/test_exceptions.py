@@ -12,7 +12,6 @@ import pytest
 from omopcloudetl_core.exceptions import (
     OmopCloudEtlError,
     SQLExecutionError,
-    ConfigurationError,
 )
 
 
