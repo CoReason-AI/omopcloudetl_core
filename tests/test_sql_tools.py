@@ -6,47 +6,73 @@
 # For details, see the LICENSE file.
 # Commercial use beyond a 30-day trial requires a separate license.
 #
-# Source Code: https://github.com/CoReason-AI/omcloudetl_core
+# Source Code: https://github.com/CoReason-AI/omopcloudetl_core
 
 import pytest
-from omopcloudetl_core.sql_tools import (
-    render_jinja_template,
-    apply_query_tag,
-    split_sql_script,
-)
 from jinja2.exceptions import UndefinedError
 
-
-def test_render_jinja_template_success():
-    """Tests that a Jinja2 template is rendered correctly."""
-    template = "SELECT * FROM {{ schemas.source }}.person;"
-    context = {"schemas": {"source": "raw_data"}}
-    rendered = render_jinja_template(template, context)
-    assert rendered == "SELECT * FROM raw_data.person;"
+from omopcloudetl_core.sql_tools import (
+    apply_query_tag,
+    render_jinja_template,
+    split_sql_script,
+)
 
 
-def test_render_jinja_template_undefined_variable():
-    """Tests that rendering fails if a variable is undefined."""
-    template = "SELECT * FROM {{ schemas.undefined }};"
-    context = {"schemas": {"source": "raw"}}
-    with pytest.raises(UndefinedError):
-        render_jinja_template(template, context)
+class TestRenderJinjaTemplate:
+    def test_render_with_valid_context(self):
+        template = "SELECT * FROM {{ schemas.source }}.my_table;"
+        context = {"schemas": {"source": "analytics"}}
+        expected = "SELECT * FROM analytics.my_table;"
+        assert render_jinja_template(template, context) == expected
+
+    def test_render_with_missing_variable_raises_error(self):
+        template = "SELECT * FROM {{ schemas.missing }}.my_table;"
+        context = {"schemas": {"source": "analytics"}}
+        with pytest.raises(UndefinedError):
+            render_jinja_template(template, context)
 
 
-def test_apply_query_tag():
-    """Tests that a query tag is correctly prepended to a SQL statement."""
-    sql = "SELECT 1;"
-    context = {"step": "test", "id": "123"}
-    tagged_sql = apply_query_tag(sql, context)
-    assert "/* OmopCloudEtlContext:" in tagged_sql
-    assert '"step": "test"' in tagged_sql
-    assert sql in tagged_sql
+class TestApplyQueryTag:
+    def test_apply_query_tag(self):
+        sql = "SELECT 1;"
+        context = {"step": "test_step", "id": "123"}
+        expected_tag = '/* OmopCloudEtlContext: {"step": "test_step", "id": "123"} */'
+        tagged_sql = apply_query_tag(sql, context)
+        assert tagged_sql.startswith(expected_tag)
+        assert tagged_sql.endswith(sql)
 
 
-def test_split_sql_script():
-    """Tests that a SQL script is correctly split into individual statements."""
-    script = "SELECT 1; SELECT 2; -- A comment\nSELECT 3;"
-    statements = split_sql_script(script)
-    assert len(statements) == 3
-    assert statements[0] == "SELECT 1"
-    assert statements[2] == "SELECT 3"
+class TestSplitSqlScript:
+    def test_split_multiple_statements(self):
+        script = """
+            -- First statement
+            CREATE TABLE my_table (id INT);
+            -- Second statement
+            INSERT INTO my_table (id) VALUES (1);
+        """
+        statements = split_sql_script(script)
+        assert len(statements) == 2
+        assert statements[0] == "CREATE TABLE my_table (id INT)"
+        assert statements[1] == "INSERT INTO my_table (id) VALUES (1)"
+
+    def test_split_with_empty_statements_and_comments(self):
+        script = """
+            SELECT 1; -- comment
+            ;
+            -- another comment
+            SELECT 2;
+        """
+        statements = split_sql_script(script)
+        assert len(statements) == 2
+        assert statements[0] == "SELECT 1"
+        assert statements[1] == "SELECT 2"
+
+    def test_split_empty_script(self):
+        script = ""
+        statements = split_sql_script(script)
+        assert len(statements) == 0
+
+    def test_split_script_with_only_comments(self):
+        script = "-- This is a comment"
+        statements = split_sql_script(script)
+        assert len(statements) == 0
