@@ -49,7 +49,7 @@ def apply_query_tag(sql: str, context: Dict[str, str]) -> str:
 def split_sql_script(sql_script: str) -> List[str]:
     """
     Splits a SQL script into a list of individual, non-empty statements,
-    stripping comments.
+    stripping comments and trailing semicolons.
 
     Args:
         sql_script: A string containing one or more SQL statements.
@@ -61,5 +61,15 @@ def split_sql_script(sql_script: str) -> List[str]:
     formatted_script = sqlparse.format(sql_script, strip_comments=True)
     statements = sqlparse.split(formatted_script)
 
-    # Filter out empty statements (e.g., just ';')
-    return [stmt.strip() for stmt in statements if stmt.strip() and stmt.strip() != ";"]
+    # Clean up statements
+    cleaned_statements = []
+    for stmt in statements:
+        stripped_stmt = stmt.strip()
+        if stripped_stmt:
+            # Remove trailing semicolon if it exists
+            if stripped_stmt.endswith(";"):
+                stripped_stmt = stripped_stmt[:-1]
+            if stripped_stmt:
+                cleaned_statements.append(stripped_stmt)
+
+    return cleaned_statements

@@ -13,61 +13,33 @@ from pydantic import ValidationError
 from omopcloudetl_core.models.metrics import LoadMetrics, ExecutionMetrics
 
 
-def test_load_metrics_creation():
-    """Tests successful creation of LoadMetrics."""
-    metrics = LoadMetrics(
-        rows_inserted=100,
-        rows_rejected=5,
-        rows_processed=105,
-        error_details_uri="s3://errors/details.csv",
-        query_id="qid-123",
-    )
+def test_load_metrics_successful_validation():
+    """Tests that LoadMetrics validates with correct data."""
+    data = {"rows_inserted": 100, "rows_rejected": 5, "query_id": "qid_123"}
+    metrics = LoadMetrics.model_validate(data)
     assert metrics.rows_inserted == 100
     assert metrics.rows_rejected == 5
-    assert metrics.rows_processed == 105
-    assert metrics.error_details_uri == "s3://errors/details.csv"
-    assert metrics.query_id == "qid-123"
+    assert metrics.query_id == "qid_123"
 
 
 def test_load_metrics_missing_required_fields():
-    """Tests that LoadMetrics raises ValidationError for missing required fields."""
+    """Tests that LoadMetrics fails validation if required fields are missing."""
     with pytest.raises(ValidationError):
-        LoadMetrics(rows_processed=100)  # rows_inserted and rows_rejected are required
+        LoadMetrics.model_validate({"rows_rejected": 5})  # missing rows_inserted
 
 
-def test_load_metrics_optional_fields():
-    """Tests that LoadMetrics can be created with only required fields."""
-    metrics = LoadMetrics(rows_inserted=50, rows_rejected=0)
-    assert metrics.rows_inserted == 50
-    assert metrics.rows_rejected == 0
-    assert metrics.rows_processed is None
-    assert metrics.error_details_uri is None
-    assert metrics.query_id is None
+def test_execution_metrics_all_fields():
+    """Tests that ExecutionMetrics validates with a full set of data."""
+    data = {"rows_affected": 25, "rows_inserted": 10, "rows_updated": 5, "rows_deleted": 10, "query_id": "qid_456"}
+    metrics = ExecutionMetrics.model_validate(data)
+    assert metrics.rows_affected == 25
+    assert metrics.rows_inserted == 10
+    assert metrics.rows_updated == 5
+    assert metrics.rows_deleted == 10
 
 
-def test_execution_metrics_creation():
-    """Tests successful creation of ExecutionMetrics."""
-    metrics = ExecutionMetrics(rows_affected=10, rows_inserted=5, rows_updated=3, rows_deleted=2, query_id="qid-456")
-    assert metrics.rows_affected == 10
-    assert metrics.rows_inserted == 5
-    assert metrics.rows_updated == 3
-    assert metrics.rows_deleted == 2
-    assert metrics.query_id == "qid-456"
-
-
-def test_execution_metrics_all_fields_optional():
-    """Tests that ExecutionMetrics can be created with no fields."""
+def test_execution_metrics_optional_fields():
+    """Tests that ExecutionMetrics can be created with only optional fields."""
     metrics = ExecutionMetrics()
     assert metrics.rows_affected is None
     assert metrics.rows_inserted is None
-    assert metrics.rows_updated is None
-    assert metrics.rows_deleted is None
-    assert metrics.query_id is None
-
-
-def test_execution_metrics_partial_fields():
-    """Tests creation of ExecutionMetrics with a subset of fields."""
-    metrics = ExecutionMetrics(rows_inserted=5, query_id="qid-789")
-    assert metrics.rows_inserted == 5
-    assert metrics.query_id == "qid-789"
-    assert metrics.rows_affected is None

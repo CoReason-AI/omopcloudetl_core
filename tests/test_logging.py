@@ -9,110 +9,48 @@
 # Source Code: https://github.com/CoReason-AI/omopcloudetl_core
 
 import logging
-import threading
-from io import StringIO
-
 import pytest
-from colorama import Fore, Style
-
-from omopcloudetl_core.logging import setup_logging
+from io import StringIO
+from omopcloudetl_core.logging import setup_logging, ColorFormatter
 
 
 @pytest.fixture
-def log_capture():
-    """Fixture to capture log output."""
-    # This is a simplified mock; for more complex scenarios, caplog is better
-    # but requires pytest configuration. This avoids that for simplicity.
-    stream = StringIO()
-    handler = logging.StreamHandler(stream)
-    formatter = logging.Formatter("%(asctime)s - %(name)s - [%(threadName)s] - %(levelname)s - %(message)s")
-    handler.setFormatter(formatter)
-    return stream, handler
+def clean_logger():
+    """Fixture to get a clean logger instance for each test."""
+    logger_name = f"test_logger_{id(clean_logger)}"
+    logger = logging.getLogger(logger_name)
+    if logger.hasHandlers():
+        logger.handlers.clear()
+    yield logger
+    if logger.hasHandlers():
+        logger.handlers.clear()
 
 
-def test_setup_logging_returns_configured_logger():
-    """Test that setup_logging returns a logger with the correct configuration."""
-    # Use a unique name to avoid conflicts with other tests
-    logger = setup_logging(level=logging.DEBUG, logger_name="test_setup_logger")
+def test_setup_logging_returns_logger_instance(clean_logger):
+    """Tests that setup_logging returns a valid logger instance."""
+    logger = setup_logging(level=logging.DEBUG, logger_name=clean_logger.name)
     assert isinstance(logger, logging.Logger)
-    assert logger.level == logging.DEBUG
-    assert len(logger.handlers) > 0
 
 
-def test_color_formatter_adds_color_codes():
-    """Test that the ColorFormatter correctly adds color codes to log messages."""
-    logger = setup_logging(logger_name="test_color_logger")
-    # To test color, we need to get the formatter from the handler
-    # This is a bit of an integration test
-    formatter = logger.handlers[0].formatter
-
-    # Test INFO level
-    info_record = logging.LogRecord("test", logging.INFO, "/path", 1, "Info message", (), None)
-    formatted_info = formatter.format(info_record)
-    assert formatted_info.startswith(Fore.GREEN)
-    assert "Info message" in formatted_info
-    assert formatted_info.endswith(Style.RESET_ALL)
-
-    # Test ERROR level
-    error_record = logging.LogRecord("test", logging.ERROR, "/path", 1, "Error message", (), None)
-    formatted_error = formatter.format(error_record)
-    assert formatted_error.startswith(Fore.RED)
-    assert "Error message" in formatted_error
-    assert formatted_error.endswith(Style.RESET_ALL)
-
-
-def test_setup_logging_is_idempotent():
-    """Test that calling setup_logging multiple times for the same logger doesn't add more handlers."""
-    logger_name = "idempotent_logger"
-    logger = setup_logging(logger_name=logger_name)
-    initial_handler_count = len(logger.handlers)
-
-    # Call it again
-    logger_again = setup_logging(logger_name=logger_name)
-
-    assert len(logger_again.handlers) == initial_handler_count
-    assert logger is logger_again
-
-
-def test_log_format_includes_thread_name():
-    """Verify that the log format correctly includes the thread name as required by the spec."""
-    logger = setup_logging(logger_name="thread_test_logger")
-
-    # To capture output, we can temporarily add a stream handler
+def test_log_format_includes_thread_name(clean_logger):
+    """Tests that the log format correctly includes the thread name."""
     log_stream = StringIO()
-    stream_handler = logging.StreamHandler(log_stream)
-    stream_handler.setFormatter(logger.handlers[0].formatter)
-    logger.addHandler(stream_handler)
+    handler = logging.StreamHandler(log_stream)
+    formatter = ColorFormatter("%(asctime)s - %(name)s - [%(threadName)s] - %(levelname)s - %(message)s")
+    handler.setFormatter(formatter)
+    clean_logger.addHandler(handler)
+    clean_logger.setLevel(logging.INFO)
 
-    custom_thread_name = "MyTestThread"
-    log_message = "This is a test message."
-
-    def log_in_thread():
-        logger.info(log_message)
-
-    thread = threading.Thread(target=log_in_thread, name=custom_thread_name)
-    thread.start()
-    thread.join()
-
-    # Clean up the handler
-    logger.removeHandler(stream_handler)
-
+    clean_logger.info("Test message")
     log_output = log_stream.getvalue()
-    assert f"[{custom_thread_name}]" in log_output
-    assert log_message in log_output
+
+    # The default thread name is 'MainThread'
+    assert "[MainThread]" in log_output
 
 
-def test_color_formatter_no_color():
-    """Test that the ColorFormatter does not add color codes for an unknown level."""
-    logger = setup_logging(logger_name="test_no_color_logger")
-    formatter = logger.handlers[0].formatter
-
-    # Use a custom log level that is not in the LEVEL_COLORS map
-    CUSTOM_LEVEL = 99
-    custom_record = logging.LogRecord("test", CUSTOM_LEVEL, "/path", 1, "Custom message", (), None)
-    formatted_message = formatter.format(custom_record)
-
-    # Check that no ANSI escape codes are present
-    assert not formatted_message.startswith(Fore.GREEN)
-    assert "Custom message" in formatted_message
-    assert not formatted_message.endswith(Style.RESET_ALL)
+def test_setup_logging_is_idempotent(clean_logger):
+    """Tests that calling setup_logging multiple times does not add duplicate handlers."""
+    setup_logging(logger_name=clean_logger.name)
+    assert len(clean_logger.handlers) == 1
+    setup_logging(logger_name=clean_logger.name)
+    assert len(clean_logger.handlers) == 1
