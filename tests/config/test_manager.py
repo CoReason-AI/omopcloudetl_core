@@ -81,3 +81,27 @@ def test_secret_resolution_failure(manager):
             with patch.dict("os.environ", {}, clear=True):
                 with pytest.raises(SecretAccessError):
                     manager.load_project_config(Path("dummy/path/secret.yml"))
+
+
+YAML_WITHOUT_SECRETS_BLOCK = """
+connection:
+  provider_type: "test"
+  password_secret_id: "ENV_DB_PASSWORD"
+orchestrator:
+  type: "local"
+schemas:
+  source: "raw"
+  target: "cdm"
+"""
+
+
+def test_secret_resolution_without_secrets_block_success(manager):
+    """
+    Tests that secret resolution defaults to EnvironmentSecretsProvider
+    when password_secret_id is provided but a 'secrets' block is not.
+    """
+    with patch("builtins.open", mock_open(read_data=YAML_WITHOUT_SECRETS_BLOCK)):
+        with patch.object(Path, "is_file", return_value=True):
+            with patch.dict("os.environ", {"ENV_DB_PASSWORD": "env_secret_password"}):
+                config = manager.load_project_config(Path("dummy/path/no_secret_block.yml"))
+    assert config.connection.password.get_secret_value() == "env_secret_password"
