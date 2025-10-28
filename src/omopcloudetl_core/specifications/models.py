@@ -11,11 +11,13 @@
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
 
+
 class CDMFieldSpec(BaseModel):
     name: str
-    type: str # Generalized SQL type (e.g., BIGINT, VARCHAR(50))
+    type: str  # Generalized SQL type (e.g., BIGINT, VARCHAR(50))
     required: bool
     description: Optional[str]
+
 
 class CDMTableSpec(BaseModel):
     name: str
@@ -25,6 +27,7 @@ class CDMTableSpec(BaseModel):
     indexes: List[Dict[str, Any]] = Field(default_factory=list)
     # Centralized optimization hints (e.g., {"databricks": {"zorder_by": ["field"]}})
     optimizations: Dict[str, Dict[str, Any]] = Field(default_factory=dict)
+
 
 class CDMSpecification(BaseModel):
     version: str

@@ -43,9 +43,7 @@ def apply_query_tag(sql: str, context: Dict[str, str]) -> str:
         The SQL query with the prepended context tag.
     """
     # Sanitize context to ensure it's a flat dictionary of strings
-    sanitized_context = {
-        str(k): str(v) for k, v in context.items() if isinstance(v, (str, int, float, bool))
-    }
+    sanitized_context = {str(k): str(v) for k, v in context.items() if isinstance(v, (str, int, float, bool))}
     json_context = json.dumps(sanitized_context, sort_keys=True)
     return f"/* OmopCloudEtlContext: {json_context} */\n{sql}"
 

@@ -11,7 +11,7 @@
 import csv
 import io
 from pathlib import Path
-from typing import Optional, Dict, List
+from typing import Optional, Dict
 
 import diskcache
 import requests
@@ -79,9 +79,7 @@ class SpecificationManager:
         except Exception as e:
             raise SpecificationError(f"Failed to parse specification for version {version}: {e}") from e
 
-    def fetch_specification(
-        self, version: str, local_path: Optional[Path] = None
-    ) -> CDMSpecification:
+    def fetch_specification(self, version: str, local_path: Optional[Path] = None) -> CDMSpecification:
         """
         Fetches a CDM specification, using a cache to avoid repeated downloads.
 

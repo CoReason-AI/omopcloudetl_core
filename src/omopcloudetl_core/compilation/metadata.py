@@ -16,6 +16,7 @@ from omopcloudetl_core.abstractions.connections import BaseConnection
 from omopcloudetl_core.models.metrics import ExecutionMetrics, LoadMetrics
 from omopcloudetl_core.logging import logger
 
+
 class MetadataManager:
     """Manages logging of workflow execution metadata to a database table."""
 
@@ -98,7 +99,7 @@ class MetadataManager:
 
         sql = f"""
         UPDATE {self.TABLE_NAME}
-        SET {', '.join(set_clauses)}
+        SET {", ".join(set_clauses)}
         WHERE execution_id = ? AND step_name = ? AND status = 'RUNNING';
         """
         params.extend([str(self.execution_id), step_name])

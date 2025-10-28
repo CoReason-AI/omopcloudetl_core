@@ -87,9 +87,7 @@ class WorkflowCompiler:
         except Exception as e:
             raise CompilationError(f"Failed to read or render file {file_path}: {e}") from e
 
-    def compile(
-        self, workflow_config: WorkflowConfig, workflow_base_path: Path
-    ) -> CompiledWorkflowPlan:
+    def compile(self, workflow_config: WorkflowConfig, workflow_base_path: Path) -> CompiledWorkflowPlan:
         """
         Compiles a workflow configuration into a structured, executable plan.
 
@@ -119,7 +117,9 @@ class WorkflowCompiler:
 
                 sql = self.sql_generator.generate_transform_sql(dml_def, context)
                 tagged_sql = apply_query_tag(sql, query_context)
-                compiled_steps.append(CompiledSQLStep(name=step.name, depends_on=step.depends_on, sql_statements=[tagged_sql]))
+                compiled_steps.append(
+                    CompiledSQLStep(name=step.name, depends_on=step.depends_on, sql_statements=[tagged_sql])
+                )
 
             elif isinstance(step, DDLWorkflowStep):
                 spec = self.spec_manager.fetch_specification(step.cdm_version)
@@ -129,13 +129,17 @@ class WorkflowCompiler:
 
                 ddl_statements = self.ddl_generator.generate_ddl(spec, schema, step.options)
                 tagged_statements = [apply_query_tag(s, query_context) for s in ddl_statements]
-                compiled_steps.append(CompiledSQLStep(name=step.name, depends_on=step.depends_on, sql_statements=tagged_statements))
+                compiled_steps.append(
+                    CompiledSQLStep(name=step.name, depends_on=step.depends_on, sql_statements=tagged_statements)
+                )
 
             elif isinstance(step, SQLWorkflowStep):
                 sql_script = self._read_and_render_file(workflow_base_path / step.sql_file, context)
                 statements = split_sql_script(sql_script)
                 tagged_statements = [apply_query_tag(s, query_context) for s in statements]
-                compiled_steps.append(CompiledSQLStep(name=step.name, depends_on=step.depends_on, sql_statements=tagged_statements))
+                compiled_steps.append(
+                    CompiledSQLStep(name=step.name, depends_on=step.depends_on, sql_statements=tagged_statements)
+                )
 
             elif isinstance(step, BulkLoadWorkflowStep):
                 resolved_uri = render_jinja_template(step.source_uri_pattern, context)
@@ -143,15 +147,17 @@ class WorkflowCompiler:
                 if not target_schema:
                     raise CompilationError(f"Schema reference '{step.target_schema_ref}' not found in project config.")
 
-                compiled_steps.append(CompiledBulkLoadStep(
-                    name=step.name,
-                    depends_on=step.depends_on,
-                    source_uri=resolved_uri,
-                    target_schema=target_schema,
-                    target_table=step.target_table,
-                    source_format_options=step.options.get("source_format", {}),
-                    load_options=step.options.get("load", {}),
-                ))
+                compiled_steps.append(
+                    CompiledBulkLoadStep(
+                        name=step.name,
+                        depends_on=step.depends_on,
+                        source_uri=resolved_uri,
+                        target_schema=target_schema,
+                        target_table=step.target_table,
+                        source_format_options=step.options.get("source_format", {}),
+                        load_options=step.options.get("load", {}),
+                    )
+                )
 
         logger.info("Workflow compilation completed successfully.")
         return CompiledWorkflowPlan(
