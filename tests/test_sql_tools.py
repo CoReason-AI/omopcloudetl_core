@@ -9,7 +9,6 @@
 # Source Code: https://github.com/CoReason-AI/omopcloudetl_core
 
 import pytest
-from jinja2.exceptions import UndefinedError
 from omopcloudetl_core.exceptions import CompilationError
 
 from omopcloudetl_core.sql_tools import (

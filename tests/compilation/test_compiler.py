@@ -290,9 +290,7 @@ def test_compile_dml_step_success(compiler):
 
 def test_compile_empty_workflow(compiler):
     """Tests that a workflow with no steps compiles correctly."""
-    workflow_config = WorkflowConfig.model_validate(
-        {"workflow_name": "empty_workflow", "steps": []}
-    )
+    workflow_config = WorkflowConfig.model_validate({"workflow_name": "empty_workflow", "steps": []})
     plan = compiler.compile(workflow_config, Path("."))
     assert len(plan.steps) == 0
     assert plan.workflow_name == "empty_workflow"
