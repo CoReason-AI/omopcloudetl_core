@@ -192,16 +192,62 @@ def test_orchestrator_instantiation_fails(mock_entry_points, discovery_manager):
         discovery_manager.get_orchestrator(OrchestratorConfig(type="bad_orchestrator"))
 
 
-def test_get_generators_missing_attributes(discovery_manager):
-    """Tests that a DiscoveryError is raised if the connection is missing generator attributes."""
-    bad_connection_instance = MagicMock()
-    # To properly test this, we need to remove the attributes from the instance
-    # that `hasattr` will check. We can't delete from the MagicMock class itself.
-    delattr(bad_connection_instance, "SQL_GENERATOR_CLASS")
-    delattr(bad_connection_instance, "DDL_GENERATOR_CLASS")
+class MockConnectionMissingGenerators(BaseConnection):
+    """A mock connection class that is missing the required generator class attributes."""
 
+    provider_type = "no_generators"
+    # SQL_GENERATOR_CLASS and DDL_GENERATOR_CLASS are intentionally omitted
+
+    def __init__(self, config):
+        super().__init__(config)
+
+    def connect(self):
+        pass
+
+    def close(self):
+        pass
+
+    def execute_sql(self, sql, params=None, commit=True):
+        pass
+
+    def bulk_load(self, source_uri, target_schema, target_table, source_format_options, load_options):
+        pass
+
+    def fetch_data(self, sql, params=None):
+        pass
+
+    def table_exists(self, table_name, schema_name):
+        pass
+
+    def post_load_maintenance(self, table_name, schema_name):
+        pass
+
+    def bulk_unload(self, target_uri, target_format, sql, unload_options=None):
+        pass
+
+    def scalability_tier(self):
+        pass
+
+
+class MockConnectionPartialGenerators(MockConnectionMissingGenerators):
+    """A mock connection with only one of the required generator attributes."""
+
+    provider_type = "partial_generators"
+    SQL_GENERATOR_CLASS = MagicMock()
+
+
+def test_get_generators_missing_attributes(discovery_manager):
+    """Tests DiscoveryError for a connection missing both generator attributes."""
+    bad_connection = MockConnectionMissingGenerators(config=ConnectionConfig(provider_type="no_generators"))
     with pytest.raises(DiscoveryError, match="does not define"):
-        discovery_manager.get_generators(bad_connection_instance)
+        discovery_manager.get_generators(bad_connection)
+
+
+def test_get_generators_partially_missing_attributes(discovery_manager):
+    """Tests DiscoveryError for a connection missing one generator attribute."""
+    partial_connection = MockConnectionPartialGenerators(config=ConnectionConfig(provider_type="partial_generators"))
+    with pytest.raises(DiscoveryError, match="does not define"):
+        discovery_manager.get_generators(partial_connection)
 
 
 @patch("omopcloudetl_core.discovery.entry_points")

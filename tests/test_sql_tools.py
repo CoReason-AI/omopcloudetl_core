@@ -76,3 +76,44 @@ class TestSplitSqlScript:
         script = "-- This is a comment"
         statements = split_sql_script(script)
         assert len(statements) == 0
+
+    def test_split_with_whitespace_input(self):
+        script = " \n\t "
+        statements = split_sql_script(script)
+        assert len(statements) == 0
+
+    def test_split_with_semicolon_in_string_literal(self):
+        script = "INSERT INTO t (col) VALUES ('a;b'); SELECT 1;"
+        statements = split_sql_script(script)
+        assert len(statements) == 2
+        assert statements[0] == "INSERT INTO t (col) VALUES ('a;b')"
+        assert statements[1] == "SELECT 1"
+
+    def test_split_with_multiple_semicolons(self):
+        script = "SELECT 1;; SELECT 2;"
+        statements = split_sql_script(script)
+        assert len(statements) == 2
+        assert statements[0] == "SELECT 1"
+        assert statements[1] == "SELECT 2"
+
+    def test_split_with_multiline_comments(self):
+        script = """
+            /*
+             * This is a multi-line comment.
+             */
+            SELECT 1;
+        """
+        statements = split_sql_script(script)
+        assert len(statements) == 1
+        assert statements[0] == "SELECT 1"
+
+    def test_split_with_mixed_complex_statements(self):
+        script = """
+            -- initial comment
+            SELECT 'a;b'; /* multi-line comment */ ;
+            CREATE TABLE foo (bar TEXT);; -- trailing comment
+        """
+        statements = split_sql_script(script)
+        assert len(statements) == 2
+        assert statements[0] == "SELECT 'a;b'"
+        assert statements[1] == "CREATE TABLE foo (bar TEXT)"
