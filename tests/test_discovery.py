@@ -194,25 +194,44 @@ def test_orchestrator_instantiation_fails(mock_entry_points, discovery_manager):
 
 class MockConnectionMissingGenerators(BaseConnection):
     """A mock connection class that is missing the required generator class attributes."""
+
     provider_type = "no_generators"
     # SQL_GENERATOR_CLASS and DDL_GENERATOR_CLASS are intentionally omitted
 
     def __init__(self, config):
         super().__init__(config)
 
-    def connect(self): pass
-    def close(self): pass
-    def execute_sql(self, sql, params=None, commit=True): pass
-    def bulk_load(self, source_uri, target_schema, target_table, source_format_options, load_options): pass
-    def fetch_data(self, sql, params=None): pass
-    def table_exists(self, table_name, schema_name): pass
-    def post_load_maintenance(self, table_name, schema_name): pass
-    def bulk_unload(self, target_uri, target_format, sql, unload_options=None): pass
-    def scalability_tier(self): pass
+    def connect(self):
+        pass
+
+    def close(self):
+        pass
+
+    def execute_sql(self, sql, params=None, commit=True):
+        pass
+
+    def bulk_load(self, source_uri, target_schema, target_table, source_format_options, load_options):
+        pass
+
+    def fetch_data(self, sql, params=None):
+        pass
+
+    def table_exists(self, table_name, schema_name):
+        pass
+
+    def post_load_maintenance(self, table_name, schema_name):
+        pass
+
+    def bulk_unload(self, target_uri, target_format, sql, unload_options=None):
+        pass
+
+    def scalability_tier(self):
+        pass
 
 
 class MockConnectionPartialGenerators(MockConnectionMissingGenerators):
     """A mock connection with only one of the required generator attributes."""
+
     provider_type = "partial_generators"
     SQL_GENERATOR_CLASS = MagicMock()
 
