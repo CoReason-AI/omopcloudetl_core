@@ -111,7 +111,7 @@ class WorkflowCompiler:
                         raw_dml = f.read()
                     rendered_dml = render_jinja_template(raw_dml, context)
                     dml_def = DMLDefinition.model_validate(yaml.safe_load(rendered_dml))
-                except (IOError, ValidationError, yaml.YAMLError) as e:
+                except (IOError, ValidationError, yaml.YAMLError, CompilationError) as e:
                     raise DMLValidationError(f"Failed to load, render, or validate DML file {dml_path}") from e
 
                 sql = self.sql_generator.generate_transform_sql(dml_def, context)
