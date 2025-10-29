@@ -48,9 +48,7 @@ class ConnectionConfig(BaseSettings):
     @model_validator(mode="after")
     def _validate_passwords(self) -> Self:
         if self.user and not self.password and not self.password_secret_id:
-            raise ValueError(
-                "A password or password_secret_id is required when a user is provided."
-            )
+            raise ValueError("A password or password_secret_id is required when a user is provided.")
         if self.password and self.password_secret_id:
             warnings.warn(
                 "Both 'password' and 'password_secret_id' are provided. The direct 'password' will be used.",
