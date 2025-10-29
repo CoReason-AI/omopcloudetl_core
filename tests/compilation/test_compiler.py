@@ -294,3 +294,47 @@ def test_compile_empty_workflow(compiler):
     plan = compiler.compile(workflow_config, Path("."))
     assert len(plan.steps) == 0
     assert plan.workflow_name == "empty_workflow"
+
+
+def test_dag_validation_self_dependency(compiler):
+    """Tests that a DAG with a self-referencing dependency raises a WorkflowError."""
+    config = WorkflowConfig.model_validate(
+        {
+            "workflow_name": "test",
+            "steps": [
+                {"name": "a", "type": "sql", "sql_file": "a.sql", "depends_on": ["a"]},
+            ],
+        }
+    )
+    with pytest.raises(WorkflowError, match="cycle"):
+        compiler._validate_dag(config.steps)
+
+
+def test_compile_dml_empty_file(compiler):
+    """Tests that a DMLValidationError is raised when the DML file is empty."""
+    workflow_config = WorkflowConfig.model_validate(
+        {"workflow_name": "test", "steps": [{"name": "s1", "type": "dml", "dml_file": "a.dml"}]}
+    )
+    with patch("builtins.open", mock_open(read_data="")):
+        with pytest.raises(DMLValidationError):
+            compiler.compile(workflow_config, Path("."))
+
+
+def test_jinja_rendering_undefined_variable_bulk_load(compiler):
+    """Tests that an undefined Jinja variable in a bulk load source URI raises an error."""
+    workflow_config = WorkflowConfig.model_validate(
+        {
+            "workflow_name": "test",
+            "steps": [
+                {
+                    "name": "s1",
+                    "type": "bulk_load",
+                    "source_uri_pattern": "s3://bucket/{{ schemas.undefined }}",
+                    "target_table": "person",
+                    "target_schema_ref": "cdm",
+                }
+            ],
+        }
+    )
+    with pytest.raises(CompilationError):
+        compiler.compile(workflow_config, Path("."))
