@@ -8,61 +8,60 @@
 #
 # Source Code: https://github.com/CoReason-AI/omopcloudetl_core
 
-
 import logging
 import sys
-import threading
+from typing import Optional
 
-from colorama import Fore, Style, init
-
-# Initialize colorama
-init(autoreset=True)
+import colorama
 
 
-class ColorizedFormatter(logging.Formatter):
-    """
-    A custom logging formatter that adds color to log levels.
-    """
+class ColorFormatter(logging.Formatter):
+    """A logging formatter that adds color to the output."""
 
-    LOG_LEVEL_COLORS = {
-        logging.DEBUG: Fore.CYAN,
-        logging.INFO: Fore.GREEN,
-        logging.WARNING: Fore.YELLOW,
-        logging.ERROR: Fore.RED,
-        logging.CRITICAL: Fore.MAGENTA,
+    LEVEL_COLORS = {
+        logging.DEBUG: colorama.Fore.CYAN,
+        logging.INFO: colorama.Fore.GREEN,
+        logging.WARNING: colorama.Fore.YELLOW,
+        logging.ERROR: colorama.Fore.RED,
+        logging.CRITICAL: colorama.Fore.MAGENTA,
     }
 
-    def format(self, record):
-        color = self.LOG_LEVEL_COLORS.get(record.levelno)
-        # Add color to levelname
-        record.levelname = f"{color}{record.levelname}{Style.RESET_ALL}"
-        return super().format(record)
+    def format(self, record: logging.LogRecord) -> str:
+        color = self.LEVEL_COLORS.get(record.levelno)
+        message = super().format(record)
+        if color:
+            return color + message + colorama.Style.RESET_ALL
+        return message
 
 
-_loggers: dict[str, logging.Logger] = {}
-_lock = threading.Lock()
-
-
-def get_logger(name: str, level: int = logging.INFO) -> logging.Logger:
+def setup_logging(level: int = logging.INFO, logger_name: Optional[str] = None) -> logging.Logger:
     """
-    Returns a configured, thread-safe logger instance.
+    Set up a centralized, colorized, and thread-safe logger.
 
-    This function ensures that a logger is configured only once and is safe
-    to be called from multiple threads.
+    Args:
+        level: The logging level (e.g., logging.INFO).
+        logger_name: The name of the logger to configure. If None, configures the root logger.
+
+    Returns:
+        The configured logger instance.
     """
-    with _lock:
-        if name in _loggers:
-            return _loggers[name]
+    colorama.init(autoreset=True)
 
-        logger = logging.getLogger(name)
-        logger.setLevel(level)
-        logger.propagate = False  # Prevent logs from being passed to the root logger
+    logger = logging.getLogger(logger_name)
+    logger.setLevel(level)
 
-        if not logger.handlers:
-            handler = logging.StreamHandler(sys.stdout)
-            formatter = ColorizedFormatter("%(asctime)s - %(threadName)s - %(name)s - %(levelname)s - %(message)s")
-            handler.setFormatter(formatter)
-            logger.addHandler(handler)
+    # Prevent duplicate handlers if the function is called multiple times
+    if not logger.handlers:
+        handler = logging.StreamHandler(sys.stdout)
+        formatter = ColorFormatter(
+            "%(asctime)s - %(name)s - [%(threadName)s] - %(levelname)s - %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+        )
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
 
-        _loggers[name] = logger
-        return logger
+    return logger
+
+
+# Initialize a default logger for the package
+logger = setup_logging()

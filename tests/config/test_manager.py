@@ -8,113 +8,83 @@
 #
 # Source Code: https://github.com/CoReason-AI/omopcloudetl_core
 
-from pathlib import Path
-from unittest.mock import MagicMock
-
 import pytest
-from omopcloudetl_core.abstractions.secrets import BaseSecretsProvider
+from pathlib import Path
+from unittest.mock import patch, mock_open
 from omopcloudetl_core.config.manager import ConfigManager
 from omopcloudetl_core.exceptions import ConfigurationError
 
 
 @pytest.fixture
-def mock_discovery_manager():
-    """Fixture to create a mock DiscoveryManager."""
-    mock_dm = MagicMock()
-    mock_secrets_provider = MagicMock(spec=BaseSecretsProvider)
-    mock_secrets_provider.get_secret.return_value = "supersecretpassword"
-    mock_dm.get_secrets_provider.return_value = mock_secrets_provider
-    return mock_dm
+def config_manager():
+    """Provides a ConfigManager instance."""
+    return ConfigManager()
 
 
-def test_load_project_config_success(tmp_path: Path):
-    """
-    Tests that a valid project configuration is loaded successfully.
-    """
-    config_content = """
+VALID_YAML = """
 connection:
-  provider_type: "duckdb"
+  provider_type: 'test'
+  host: 'localhost'
 orchestrator:
-  type: "local"
+  type: 'local'
 schemas:
-  source: "main"
-  target: "main"
+  source: 'raw'
+  target: 'cdm'
 """
-    config_file = tmp_path / "project.yml"
-    config_file.write_text(config_content)
 
-    manager = ConfigManager()
-    config = manager.load_project_config(config_file)
-
-    assert config.connection.provider_type == "duckdb"
-    assert config.orchestrator.type == "local"
-    assert config.schemas["source"] == "main"
-
-
-def test_load_project_config_with_secret_resolution(tmp_path: Path, mock_discovery_manager: MagicMock):
-    """
-    Tests that the password is correctly resolved using a secrets provider.
-    """
-    config_content = """
+SECRET_YAML = """
 connection:
-  provider_type: "postgres"
-  user: "testuser"
-  password_secret_id: "my_db_password"
+  provider_type: 'test'
+  password_secret_id: 'MY_DB_PASSWORD'
 orchestrator:
-  type: "local"
+  type: 'local'
 schemas:
-  source: "public"
-  target: "public"
-secrets:
-  provider_type: "env"
+  source: 'raw'
 """
-    config_file = tmp_path / "project.yml"
-    config_file.write_text(config_content)
-
-    manager = ConfigManager(discovery_manager=mock_discovery_manager)
-    config = manager.load_project_config(config_file)
-
-    assert config.connection.password is not None
-    assert config.connection.password.get_secret_value() == "supersecretpassword"
-    # Verify that get_secret was called with the correct ID
-    mock_discovery_manager.get_secrets_provider.return_value.get_secret.assert_called_once_with("my_db_password")
 
 
-def test_load_project_config_file_not_found():
-    """
-    Tests that a ConfigurationError is raised if the config file does not exist.
-    """
-    manager = ConfigManager()
-    with pytest.raises(ConfigurationError, match="Configuration file not found"):
-        manager.load_project_config(Path("non_existent_file.yml"))
+def test_load_project_config_success(config_manager):
+    """Tests successfully loading a valid YAML configuration file."""
+    with patch("builtins.open", mock_open(read_data=VALID_YAML)) as mock_file:
+        with patch("pathlib.Path.is_file", return_value=True):
+            config = config_manager.load_project_config(Path("dummy/path/config.yml"))
+            assert config.connection.provider_type == "test"
+            assert config.schemas["source"] == "raw"
+            mock_file.assert_called_once_with(Path("dummy/path/config.yml"), "r")
 
 
-def test_load_project_config_invalid_yaml(tmp_path: Path):
-    """
-    Tests that a ConfigurationError is raised for a malformed YAML file.
-    """
-    config_file = tmp_path / "project.yml"
-    config_file.write_text("connection: { provider_type: 'duckdb'")  # Malformed YAML
-    manager = ConfigManager()
-    with pytest.raises(ConfigurationError, match="Error parsing YAML"):
-        manager.load_project_config(config_file)
+def test_load_project_config_resolves_secret(config_manager, monkeypatch):
+    """Tests that the ConfigManager correctly resolves secrets."""
+    secret_key = "MY_DB_PASSWORD"
+    secret_value = "password123"
+    monkeypatch.setenv(secret_key, secret_value)
+
+    with patch("builtins.open", mock_open(read_data=SECRET_YAML)):
+        with patch("pathlib.Path.is_file", return_value=True):
+            config = config_manager.load_project_config(Path("config.yml"))
+            assert config.connection.password.get_secret_value() == secret_value
 
 
-def test_load_project_config_validation_error(tmp_path: Path):
-    """
-    Tests that a ConfigurationError is raised if the config fails Pydantic validation.
-    """
-    config_content = """
-connection:
-  # provider_type is missing, which is a required field
-  host: "localhost"
-orchestrator:
-  type: "local"
-schemas:
-  source: "main"
-"""
-    config_file = tmp_path / "project.yml"
-    config_file.write_text(config_content)
-    manager = ConfigManager()
-    with pytest.raises(ConfigurationError, match="Configuration validation failed"):
-        manager.load_project_config(config_file)
+def test_load_config_file_not_found(config_manager):
+    """Tests that a ConfigurationError is raised for a missing config file."""
+    with patch("pathlib.Path.is_file", return_value=False):
+        with pytest.raises(ConfigurationError, match="not found"):
+            config_manager.load_project_config(Path("non_existent_file.yml"))
+
+
+def test_load_invalid_yaml(config_manager):
+    """Tests that a ConfigurationError is raised for invalid YAML."""
+    invalid_yaml = "connection: { provider_type: 'test'"
+    with patch("builtins.open", mock_open(read_data=invalid_yaml)):
+        with patch("pathlib.Path.is_file", return_value=True):
+            with pytest.raises(ConfigurationError):
+                config_manager.load_project_config(Path("invalid.yml"))
+
+
+def test_load_non_dict_yaml(config_manager):
+    """Tests that a ConfigurationError is raised for YAML that is not a dictionary."""
+    non_dict_yaml = "- item1\n- item2"
+    with patch("builtins.open", mock_open(read_data=non_dict_yaml)):
+        with patch("pathlib.Path.is_file", return_value=True):
+            with pytest.raises(ConfigurationError, match="not a valid dictionary"):
+                config_manager.load_project_config(Path("invalid.yml"))

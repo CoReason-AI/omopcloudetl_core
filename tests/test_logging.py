@@ -8,51 +8,65 @@
 #
 # Source Code: https://github.com/CoReason-AI/omopcloudetl_core
 
-
 import logging
-import unittest
-
-from colorama import Fore, Style
-
-from omopcloudetl_core.logging import ColorizedFormatter, get_logger
+import pytest
+from io import StringIO
+from omopcloudetl_core.logging import setup_logging, ColorFormatter
 
 
-class TestLogging(unittest.TestCase):
-    def test_get_logger(self):
-        """Test that get_logger returns a configured logger."""
-        logger = get_logger("test_logger")
-        self.assertIsInstance(logger, logging.Logger)
-        self.assertEqual(logger.level, logging.INFO)
-        self.assertEqual(len(logger.handlers), 1)
-        self.assertIsInstance(logger.handlers[0].formatter, ColorizedFormatter)
-
-    def test_colorized_formatter(self):
-        """Test that the ColorizedFormatter adds color codes to log levels."""
-        formatter = ColorizedFormatter("%(levelname)s - %(message)s")
-        record = logging.LogRecord("test", logging.INFO, "/path/to/test", 1, "Test message", (), None)
-        record.levelname = "INFO"
-        # The levelname should be wrapped in color codes
-        formatted_message = formatter.format(record)
-
-        # Construct the expected colored level name
-        expected_info = f"{Fore.GREEN}INFO{Style.RESET_ALL}"
-        self.assertIn(expected_info, formatted_message)
-        self.assertIn("Test message", formatted_message)
-
-        # Test another level
-        record.levelno = logging.ERROR
-        record.levelname = "ERROR"
-        formatted_message = formatter.format(record)
-        expected_error = f"{Fore.RED}ERROR{Style.RESET_ALL}"
-        self.assertIn(expected_error, formatted_message)
-        self.assertIn("Test message", formatted_message)
-
-    def test_get_logger_singleton(self):
-        """Test that get_logger returns the same instance for the same name."""
-        logger1 = get_logger("singleton_logger")
-        logger2 = get_logger("singleton_logger")
-        self.assertIs(logger1, logger2)
+@pytest.fixture
+def clean_logger():
+    """Fixture to get a clean logger instance for each test."""
+    logger_name = f"test_logger_{id(clean_logger)}"
+    logger = logging.getLogger(logger_name)
+    if logger.hasHandlers():
+        logger.handlers.clear()
+    yield logger
+    if logger.hasHandlers():
+        logger.handlers.clear()
 
 
-if __name__ == "__main__":
-    unittest.main()
+def test_setup_logging_returns_logger_instance(clean_logger):
+    """Tests that setup_logging returns a valid logger instance."""
+    logger = setup_logging(level=logging.DEBUG, logger_name=clean_logger.name)
+    assert isinstance(logger, logging.Logger)
+
+
+def test_log_format_includes_thread_name(clean_logger):
+    """Tests that the log format correctly includes the thread name."""
+    log_stream = StringIO()
+    handler = logging.StreamHandler(log_stream)
+    formatter = ColorFormatter("%(asctime)s - %(name)s - [%(threadName)s] - %(levelname)s - %(message)s")
+    handler.setFormatter(formatter)
+    clean_logger.addHandler(handler)
+    clean_logger.setLevel(logging.INFO)
+
+    clean_logger.info("Test message")
+    log_output = log_stream.getvalue()
+
+    # The default thread name is 'MainThread'
+    assert "[MainThread]" in log_output
+
+
+def test_setup_logging_is_idempotent(clean_logger):
+    """Tests that calling setup_logging multiple times does not add duplicate handlers."""
+    setup_logging(logger_name=clean_logger.name)
+    assert len(clean_logger.handlers) == 1
+    setup_logging(logger_name=clean_logger.name)
+    assert len(clean_logger.handlers) == 1
+
+
+def test_color_formatter_no_color():
+    """Tests that the formatter returns a plain message for levels without a color."""
+    formatter = ColorFormatter()
+    record = logging.LogRecord(
+        name="test",
+        level=33,  # A custom level with no color
+        pathname="test.py",
+        lineno=1,
+        msg="A message",
+        args=(),
+        exc_info=None,
+    )
+    formatted_message = formatter.format(record)
+    assert formatted_message == "A message"

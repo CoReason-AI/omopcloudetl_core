@@ -7,10 +7,3 @@
 # Commercial use beyond a 30-day trial requires a separate license.
 #
 # Source Code: https://github.com/CoReason-AI/omopcloudetl_core
-
-from .logging import logger
-
-
-def hello_world():
-    logger.info("Hello World!")
-    return "Hello World!"
