@@ -11,6 +11,7 @@
 import pytest
 from omopcloudetl_core.sql_tools import split_sql_script
 
+
 @pytest.mark.parametrize(
     "sql_input, expected",
     [
