@@ -9,7 +9,7 @@
 # Source Code: https://github.com/CoReason-AI/omopcloudetl_core
 
 import warnings
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Self
 
 from pydantic import BaseModel, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -46,23 +46,19 @@ class ConnectionConfig(BaseSettings):
     )
 
     @model_validator(mode="after")
-    def check_password_logic(self) -> "ConnectionConfig":
-        if self.user and not (self.password or self.password_secret_id):
-            raise ValueError(
-                f"A 'user' is specified for provider '{self.provider_type}', "
-                "but no 'password' or 'password_secret_id' was provided."
-            )
+    def _validate_passwords(self) -> Self:
+        if self.user and not self.password and not self.password_secret_id:
+            raise ValueError("A password or password_secret_id is required when a user is provided.")
         if self.password and self.password_secret_id:
             warnings.warn(
-                f"Both 'password' and 'password_secret_id' are provided "
-                f"for provider '{self.provider_type}'. "
-                "The direct 'password' will be used, and the secret will not be resolved."
+                "Both 'password' and 'password_secret_id' are provided. The direct 'password' will be used.",
+                UserWarning,
             )
         return self
 
 
 class ProjectConfig(BaseModel):
-    """Root configuration model for the project."""
+    """The root configuration model for an omopcloudetl project."""
 
     connection: ConnectionConfig
     orchestrator: OrchestratorConfig
