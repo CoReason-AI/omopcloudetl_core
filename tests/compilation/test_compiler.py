@@ -338,3 +338,19 @@ def test_jinja_rendering_undefined_variable_bulk_load(compiler):
     )
     with pytest.raises(CompilationError):
         compiler.compile(workflow_config, Path("."))
+
+
+def test_compile_with_nested_workflow_base_path(compiler):
+    """Tests that file paths are correctly resolved from a nested base path."""
+    nested_path = Path("workflows/nested")
+    workflow_config = WorkflowConfig.model_validate(
+        {
+            "workflow_name": "test_nested",
+            "steps": [{"name": "s1", "type": "sql", "sql_file": "scripts/transform.sql"}],
+        }
+    )
+    with patch("builtins.open", mock_open(read_data="SELECT 1;")) as mock_file:
+        compiler.compile(workflow_config, nested_path)
+        # Verify that the compiler attempts to open the file at the correct resolved path
+        expected_path = nested_path / "scripts/transform.sql"
+        mock_file.assert_called_once_with(expected_path, "r")
