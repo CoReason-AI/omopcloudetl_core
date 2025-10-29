@@ -63,7 +63,7 @@ class SpecificationManager:
                 name=row["cdmFieldName"].lower(),
                 type=row.get("cdmDatatype", "VARCHAR(MAX)"),  # Default type if missing
                 required=row.get("isRequired", "No").lower() == "yes",
-                description=row.get("cdmFieldName"),
+                description=row.get("description"),
             )
             tables[table_name].fields.append(field)
 
