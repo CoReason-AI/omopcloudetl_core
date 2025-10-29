@@ -10,6 +10,7 @@
 
 import pytest
 from pydantic import ValidationError
+from pathlib import Path
 from omopcloudetl_core.models.workflow import (
     WorkflowConfig,
     DMLWorkflowStep,
@@ -58,9 +59,10 @@ def test_compiled_workflow_plan_defaults():
 
 def test_sql_workflow_step_absolute_path_validation():
     """Tests that SQLWorkflowStep raises a validation error for an absolute path."""
+    absolute_path = str(Path("/absolute/path/to/file.sql").resolve())
     with pytest.raises(ValidationError):
         SQLWorkflowStep(
             name="test_step",
             type="sql",
-            sql_file="/absolute/path/to/file.sql",
+            sql_file=absolute_path,
         )
