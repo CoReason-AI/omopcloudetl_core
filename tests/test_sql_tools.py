@@ -10,6 +10,7 @@
 
 import pytest
 from jinja2.exceptions import UndefinedError
+from omopcloudetl_core.exceptions import CompilationError
 
 from omopcloudetl_core.sql_tools import (
     apply_query_tag,
@@ -28,7 +29,7 @@ class TestRenderJinjaTemplate:
     def test_render_with_missing_variable_raises_error(self):
         template = "SELECT * FROM {{ schemas.missing }}.my_table;"
         context = {"schemas": {"source": "analytics"}}
-        with pytest.raises(UndefinedError):
+        with pytest.raises(CompilationError):
             render_jinja_template(template, context)
 
 

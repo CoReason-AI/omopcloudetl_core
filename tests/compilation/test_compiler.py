@@ -146,6 +146,10 @@ def test_compile_bulk_load_step(compiler):
                     "source_uri_pattern": "s3://bucket/{{ schemas.source }}",
                     "target_table": "person",
                     "target_schema_ref": "cdm",
+                    "options": {
+                        "source_format_options": {"delimiter": ","},
+                        "load_options": {"skip_header": True},
+                    },
                 }
             ],
         }
@@ -155,6 +159,8 @@ def test_compile_bulk_load_step(compiler):
     compiled_step = plan.steps[0]
     assert compiled_step.type == "bulk_load"
     assert compiled_step.source_uri == "s3://bucket/raw"
+    assert compiled_step.source_format_options == {"delimiter": ","}
+    assert compiled_step.load_options == {"skip_header": True}
 
 
 def test_compile_missing_schema_ref(compiler):
@@ -203,12 +209,66 @@ def test_compile_sql_step_success(compiler):
     """Tests the successful compilation of an SQL step."""
     with patch("builtins.open", mock_open(read_data="SELECT 1;")) as mock_file:
         workflow_config = WorkflowConfig.model_validate(
-            {"workflow_name": "test", "steps": [{"name": "s1", "type": "sql", "sql_file": "a.sql"}]}
+            {
+                "workflow_name": "test_workflow",
+                "steps": [{"name": "s1", "type": "sql", "sql_file": "a.sql"}],
+            }
         )
         plan = compiler.compile(workflow_config, Path("."))
         assert len(plan.steps) == 1
-        assert plan.steps[0].type == "sql"
+        sql_step = plan.steps[0]
+        assert sql_step.type == "sql"
         mock_file.assert_called_once_with(Path("./a.sql"), "r")
+
+        # Verify the query tag is applied correctly
+        tagged_sql = sql_step.sql_statements[0]
+        assert tagged_sql.startswith("/* OmopCloudEtlContext:")
+        assert '"omopcloudetl_tool": "WorkflowCompiler"' in tagged_sql
+        assert '"step_name": "s1"' in tagged_sql
+        assert '"workflow_name": "test_workflow"' in tagged_sql
+
+
+def test_compile_sql_step_multiple_statements(compiler):
+    """Tests that an SQL file with multiple statements is split correctly."""
+    sql_content = "SELECT 1; SELECT 2;"
+    with patch("builtins.open", mock_open(read_data=sql_content)):
+        workflow_config = WorkflowConfig.model_validate(
+            {"workflow_name": "test", "steps": [{"name": "s1", "type": "sql", "sql_file": "a.sql"}]}
+        )
+        plan = compiler.compile(workflow_config, Path("."))
+        assert len(plan.steps[0].sql_statements) == 2
+
+
+def test_compile_sql_step_empty_file(compiler):
+    """Tests that an empty SQL file results in zero SQL statements."""
+    with patch("builtins.open", mock_open(read_data="")):
+        workflow_config = WorkflowConfig.model_validate(
+            {"workflow_name": "test", "steps": [{"name": "s1", "type": "sql", "sql_file": "a.sql"}]}
+        )
+        plan = compiler.compile(workflow_config, Path("."))
+        assert len(plan.steps[0].sql_statements) == 0
+
+
+def test_jinja_rendering_undefined_variable_dml(compiler):
+    """Tests that an undefined Jinja variable in a DML file raises an error."""
+    with patch("builtins.open", mock_open(read_data="target_table: {{ tables.undefined }}")):
+        workflow_config = WorkflowConfig.model_validate(
+            {"workflow_name": "test", "steps": [{"name": "s1", "type": "dml", "dml_file": "a.dml"}]}
+        )
+        with pytest.raises(DMLValidationError):
+            compiler.compile(workflow_config, Path("."))
+
+
+def test_jinja_rendering_undefined_variable_sql(compiler):
+    """Tests that an undefined Jinja variable in a SQL file raises an error."""
+    with patch("builtins.open", mock_open(read_data="SELECT * FROM {{ schemas.undefined }}.table")):
+        workflow_config = WorkflowConfig.model_validate(
+            {"workflow_name": "test", "steps": [{"name": "s1", "type": "sql", "sql_file": "a.sql"}]}
+        )
+        # The underlying error is from Jinja, but we wrap it.
+        # Let's check for our wrapper exception.
+        with pytest.raises(CompilationError):
+            compiler.compile(workflow_config, Path("."))
 
 
 def test_compile_dml_step_success(compiler):
@@ -226,3 +286,13 @@ def test_compile_dml_step_success(compiler):
         assert len(plan.steps) == 1
         assert plan.steps[0].type == "sql"
         compiler.sql_generator.generate_transform_sql.assert_called_once()
+
+
+def test_compile_empty_workflow(compiler):
+    """Tests that a workflow with no steps compiles correctly."""
+    workflow_config = WorkflowConfig.model_validate(
+        {"workflow_name": "empty_workflow", "steps": []}
+    )
+    plan = compiler.compile(workflow_config, Path("."))
+    assert len(plan.steps) == 0
+    assert plan.workflow_name == "empty_workflow"

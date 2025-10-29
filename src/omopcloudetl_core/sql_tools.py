@@ -12,7 +12,9 @@ import json
 from typing import Any, Dict, List
 
 import sqlparse
-from jinja2 import Environment, StrictUndefined
+from jinja2 import Environment, StrictUndefined, exceptions
+
+from omopcloudetl_core.exceptions import CompilationError
 
 
 def render_jinja_template(template_str: str, context: Dict[str, Any]) -> str:
@@ -26,9 +28,12 @@ def render_jinja_template(template_str: str, context: Dict[str, Any]) -> str:
     Returns:
         The rendered string.
     """
-    env = Environment(undefined=StrictUndefined)
-    template = env.from_string(template_str)
-    return template.render(context)
+    try:
+        env = Environment(undefined=StrictUndefined)
+        template = env.from_string(template_str)
+        return template.render(context)
+    except exceptions.UndefinedError as e:
+        raise CompilationError(f"Jinja rendering failed: {e}") from e
 
 
 def apply_query_tag(sql: str, context: Dict[str, str]) -> str:
