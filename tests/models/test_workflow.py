@@ -15,6 +15,7 @@ from omopcloudetl_core.models.workflow import (
     DMLWorkflowStep,
     BulkLoadWorkflowStep,
     CompiledWorkflowPlan,
+    SQLWorkflowStep,
 )
 
 VALID_WORKFLOW = {
@@ -53,3 +54,13 @@ def test_compiled_workflow_plan_defaults():
     """Tests the default values of the CompiledWorkflowPlan."""
     plan = CompiledWorkflowPlan(workflow_name="test", concurrency=1, steps=[], context_snapshot={})
     assert plan.execution_id is not None
+
+
+def test_sql_workflow_step_absolute_path_validation():
+    """Tests that SQLWorkflowStep raises a validation error for an absolute path."""
+    with pytest.raises(ValidationError):
+        SQLWorkflowStep(
+            name="test_step",
+            type="sql",
+            sql_file="/absolute/path/to/file.sql",
+        )

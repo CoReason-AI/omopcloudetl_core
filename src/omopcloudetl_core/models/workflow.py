@@ -8,10 +8,11 @@
 #
 # Source Code: https://github.com/CoReason-AI/omopcloudetl_core
 
+from pathlib import Path
 from typing import Annotated, Any, Dict, List, Literal, Sequence, Union
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 # Part 1: Workflow Configuration (User-defined)
@@ -53,6 +54,13 @@ class SQLWorkflowStep(BaseWorkflowStep):
 
     type: Literal["sql"] = "sql"
     sql_file: str
+
+    @field_validator("sql_file")
+    def must_be_relative_path(cls, v: str) -> str:
+        """Validate that the SQL file is a relative path."""
+        if Path(v).is_absolute():
+            raise ValueError("SQL file path must be relative.")
+        return v
 
 
 WorkflowStep = Annotated[
