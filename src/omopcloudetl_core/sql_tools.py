@@ -70,11 +70,14 @@ def split_sql_script(sql_script: str) -> List[str]:
     cleaned_statements = []
     for stmt in statements:
         stripped_stmt = stmt.strip()
+        # Remove trailing semicolon if it exists
+        if stripped_stmt.endswith(";"):
+            stripped_stmt = stripped_stmt[:-1]
+
+        # Strip again to remove whitespace that may have been before a semicolon
+        stripped_stmt = stripped_stmt.strip()
+
         if stripped_stmt:
-            # Remove trailing semicolon if it exists
-            if stripped_stmt.endswith(";"):
-                stripped_stmt = stripped_stmt[:-1]
-            if stripped_stmt:
-                cleaned_statements.append(stripped_stmt)
+            cleaned_statements.append(stripped_stmt)
 
     return cleaned_statements
