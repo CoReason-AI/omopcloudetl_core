@@ -33,6 +33,30 @@ from omopcloudetl_core.sql_tools import split_sql_script
             "CREATE TEMP FUNCTION a(x STRING) AS (x); SELECT a(';');",
             ["CREATE TEMP FUNCTION a(x STRING) AS (x)", "SELECT a(';')"],
         ),
+        (
+            "SELECT $$hello;world$$;",
+            ["SELECT $$hello;world$$"],
+        ),
+        (
+            "SELECT $tag$hello;world$tag$;",
+            ["SELECT $tag$hello;world$tag$"],
+        ),
+        (
+            "SELECT 1; -- statement;\nSELECT 2;",
+            ["SELECT 1", "SELECT 2"],
+        ),
+        (
+            "SELECT 1 /* comment; */ ; SELECT 2",
+            ["SELECT 1", "SELECT 2"],
+        ),
+        (
+            "/*\n  multi-line comment;\n*/\nSELECT 1;",
+            ["SELECT 1"],
+        ),
+        (
+            "SELECT 'incomplete string",
+            ["SELECT 'incomplete string"],
+        ),
     ],
 )
 def test_split_sql_script_edge_cases(sql_input, expected):
