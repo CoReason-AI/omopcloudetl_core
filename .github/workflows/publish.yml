@@ -1,0 +1,41 @@
+# This workflow is triggered when a new release is created on GitHub.
+name: Upload Python Package to PyPI
+
+on:
+  release:
+    types: [created] # Runs only when a new release is published
+
+jobs:
+  pypi-publish:
+    name: Upload release to PyPI
+    runs-on: ubuntu-latest
+
+    # Use the environment name you configured in PyPI and GitHub
+    environment: pypi
+
+    # This permission is essential for trusted publishing
+    permissions:
+      id-token: write
+      contents: read
+      attestations: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry
+        run: pipx install poetry
+        shell: bash
+
+      - name: Build package
+        run: poetry build
+        shell: bash
+
+      - name: Publish package to PyPI
+        # This action supports trusted publishing
+        uses: pypa/gh-action-pypi-publish@v1

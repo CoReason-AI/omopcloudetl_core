@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "omopcloudetl_core"
-version = "0.1.0"
+version = "0.1.1"
 description = "This package is the foundation of the OmopCloudEtl ecosystem. It defines the core abstractions, data models (Configuration, DML, Workflow), and the compilation logic."
 authors = ["Gowtham A Rao <gowtham.rao@scientific-informatics.com>"]
 license = "Prosperity-3.0"
