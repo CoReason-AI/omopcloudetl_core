@@ -1,47 +1,158 @@
-# OMOP Cloud ETL Ecosystem Documentation
+### Documentation: omopcloudetl-core
 
-## Introduction
+This document provides detailed documentation for the `omopcloudetl-core` Python package. It outlines its architecture, core components, and its crucial role within the broader OmopCloudEtl ecosystem, based on the comprehensive design specification provided.
 
-This document provides a comprehensive overview of the `omopcloudetl-core` software and its role within the larger OMOP Cloud ETL ecosystem. It details the architectural principles, the function of each component, and how the current implementation aligns with the provided specification and build guide.
+### 1\. Overview
 
-## High-Level Architecture (HLD) and Ecosystem
+The `omopcloudetl-core` package is the foundational library of the OmopCloudEtl ecosystem. This ecosystem is designed as a hyper-modular, cloud-native framework for executing petabyte-scale Extract, Transform, and Load (ETL) processes targeting the OHDSI OMOP Common Data Model (CDM).
 
-The OMOP Cloud ETL ecosystem is a hyper-modular, cloud-native framework designed for petabyte-scale ETL processes targeting the OMOP Common Data Model. It employs a **Compiler/Submitter Architecture**, which fundamentally decouples workflow definition, SQL compilation, and execution orchestration. This separation addresses the scalability and maintainability bottlenecks often found in traditional, monolithic ETL tools.
+The primary responsibility of `omopcloudetl-core` is to define the core abstractions, data models (Configuration, DML, Workflow), and the compilation logic for the ETL workflows.
 
-The ecosystem is composed of several key Python packages:
+The architecture employs a strict **Compiler/Submitter model** (also referred to as Compiler/Orchestrator Separation), which fundamentally decouples three key areas:
 
-*   **`omopcloudetl-core`**: The foundational library. It contains the core abstractions, data models (for configuration, workflows, and DML), the `WorkflowCompiler`, and the `SpecificationManager`. It defines *what* to do, but not *how* to execute it.
-*   **`omopcloudetl`**: The Command Line Interface (CLI) that acts as the user-facing entry point and coordinator for the entire ecosystem.
-*   **`omopcloudetl-omop-resources`**: An assets package that distributes standard, dialect-agnostic transformation logic in the form of YAML DML files.
-*   **Orchestrator Packages (e.g., `omopcloudetl-orchestrator-local`)**: Pluggable components responsible for executing a compiled workflow plan. The local orchestrator, for example, uses a simple thread pool for development and small-scale loads.
-*   **Provider Packages (e.g., `omopcloudetl-provider-databricks`)**: Pluggable components that provide the platform-specific logic for connecting to a database and compiling DML into dialect-specific SQL.
+  * **Workflow Definition:** Defined in declarative YAML files.
+  * **SQL Compilation:** Handled by `omopcloudetl-core`, translating definitions into dialect-specific SQL.
+  * **Execution Orchestration:** Handled by pluggable orchestrator packages.
 
-## Core Architectural Principles
+This separation addresses the scalability and maintainability bottlenecks often found in traditional, monolithic ETL tools. The package explicitly **does not handle** the actual execution of SQL or the movement of data.
 
-The `omopcloudetl-core` implementation is mandated to follow several key architectural principles:
+-----
 
-1.  **Declarative DML over Imperative SQL**: Instead of writing complex and often dialect-specific SQL scripts, users define transformation logic in structured, readable, and maintainable YAML DML files. `omopcloudetl-core` defines the Pydantic schema for this DML, ensuring validation and consistency.
+### 2\. Role in the OMOP ETL Ecosystem
 
-2.  **Compiler/Orchestrator Separation**: The core package acts as a `WorkflowCompiler`. Its primary role is to take a user-defined workflow, validate its dependency graph (DAG), and compile it into an executable artifact called a `CompiledWorkflowPlan`. The core package contains **no execution logic**. The actual execution is delegated to a separate, pluggable `Orchestrator`.
+`omopcloudetl-core` serves as the central definition and compilation engine that all other components interact with. It defines *what* to do, but not *how* to execute it. The ecosystem is composed of several distinct Python packages:
 
-3.  **Decoupled Orchestration**: The `BaseOrchestrator` abstract class defined in the core package allows for different execution engines to be used. This means the same workflow can be run on a local machine for testing and then scaled up on a cloud-native platform like Databricks Jobs or Argo Workflows simply by changing the configuration, without altering the core logic.
+  * **Framework (Core and CLI)**
+      * **`omopcloudetl-core`**: (This package) Defines abstractions, models, the `WorkflowCompiler`, and the `SpecificationManager`.
+      * **`omopcloudetl`**: The Command Line Interface (CLI) that acts as the user-facing entry point and coordinator, used to initiate compilation and submit jobs.
+  * **Assets**
+      * **`omopcloudetl-omop-resources`**: Distributes standardized, dialect-agnostic YAML DML definitions and workflow structures.
+  * **Orchestrators**
+      * (e.g., `omopcloudetl-orchestrator-local`): Pluggable components responsible for executing the `CompiledWorkflowPlan` generated by the core. For example, the local orchestrator uses a simple thread pool for development and small-scale loads.
+  * **Providers**
+      * (e.g., `omopcloudetl-provider-databricks`, `-provider-postgres`): Pluggable components that provide connectivity (`BaseConnection`) and dialect-specific SQL generation logic (`BaseSQLGenerator`) for target database platforms.
 
-4.  **Zero Data Movement (Cloud-Native Ingress)**: A critical principle for cloud scalability. The framework is designed so that the client (the machine running the CLI) only moves instructions, never the actual data. Bulk loading operations are handled by the data platform itself, using URI-based commands (e.g., `COPY INTO 's3://...'`). This avoids routing petabytes of data through a client machine, which is a common performance bottleneck.
+**Interaction Flow:**
 
-5.  **Automated Idempotency**: The `BaseSQLGenerator` abstraction requires that provider implementations automatically produce idempotent SQL (e.g., using `MERGE` or a transactional `DELETE`+`INSERT`). This makes ETL pipelines resilient and safely re-runnable without causing data duplication.
+1.  A user defines a workflow using YAML assets.
+2.  The CLI (`omopcloudetl`) invokes the `omopcloudetl-core` `WorkflowCompiler`.
+3.  The `WorkflowCompiler` discovers the appropriate **Provider** package via the `DiscoveryManager`.
+4.  The `Compiler` uses the Provider's `SQLGenerator` to compile the declarative DML into optimized, dialect-specific SQL.
+5.  The `Compiler` produces a `CompiledWorkflowPlan`.
+6.  The CLI submits this plan to the configured **Orchestrator** package for execution.
 
-6.  **Dynamic CDM Specification Sourcing**: To ensure workflows are always aligned with the latest standards, the `SpecificationManager` dynamically sources OMOP CDM DDL definitions directly from the official OHDSI GitHub repository. It also supports caching to improve performance and can use local files for offline development.
+-----
 
-7.  **Commercial-Grade Robustness**: The architecture mandates features like automatic connection retries (using `tenacity`) and structured observability through Pydantic models for `LoadMetrics` and `ExecutionMetrics`, ensuring the framework is reliable and transparent.
+### 3\. Key Architectural Principles (The Mandate)
 
-## Codebase Comparison to Specification
+The design of `omopcloudetl-core` mandates strict adherence to several principles crucial for scalability and cloud-native operation.
 
-The current `omopcloudetl-core` codebase is a complete and faithful implementation of the 8-phase build specification provided. It successfully embodies all the architectural principles and component responsibilities outlined.
+**3.1. Declarative DML over Imperative SQL**
+Instead of writing complex, opaque, and often dialect-specific SQL scripts, users define transformation logic in structured, readable, and maintainable YAML DML files. `omopcloudetl-core` defines the Pydantic schema (`DMLDefinition`) for this structure, improving readability, validation, and portability.
+
+**3.2. Compiler/Orchestrator Separation**
+The core package acts strictly as a **compiler**. Its primary role is to take a user-defined workflow, validate its dependency graph (DAG), and compile it into an executable artifact called a `CompiledWorkflowPlan`. It contains **no execution logic**. The actual execution is delegated to a separate, pluggable Orchestrator.
+
+**3.3. Decoupled Orchestration**
+The core defines the `BaseOrchestrator` abstraction, allowing different execution environments to be used without modifying the core logic. This means the same workflow can be run on a local machine for testing and then scaled up on a cloud-native platform (e.g., Databricks Jobs, Argo Workflows) simply by changing the configuration.
+
+**3.4. Zero Data Movement (Cloud-Native Ingress)**
+A critical principle for cloud scalability. The framework is designed so that the client (the Python process) only moves instructions, never the actual data. The `BaseConnection.bulk_load` abstraction is strictly URI-based (e.g., `s3://`, `abfss://`), leveraging native database commands like `COPY INTO`. This avoids routing petabytes of data through a client machine, which is a common performance bottleneck.
+
+**3.5. Automated Idempotency**
+The `BaseSQLGenerator` abstraction requires that all implementations automatically produce idempotent SQL (e.g., `MERGE` statements or transactional `DELETE` + `INSERT`). This makes ETL pipelines resilient and safely re-runnable without causing data duplication or side effects.
+
+**3.6. Dynamic CDM Specification Sourcing**
+DDL definitions are not statically bundled. Instead, the `SpecificationManager` dynamically sources structural definitions from the official OHDSI CommonDataModel GitHub repository, ensuring alignment with the latest standards. It also supports caching to improve performance and can use local files for offline development.
+
+**3.7. Commercial-Grade Robustness**
+The framework includes mandatory connection retries (using `tenacity`) within the `BaseConnection` abstraction and structured observability through standardized `LoadMetrics` and `ExecutionMetrics` models, ensuring the framework is reliable and transparent.
+
+-----
+
+### 4\. Package Structure and Modules
+
+The package is organized by functionality within the `src/omopcloudetl_core/` directory:
+
+| Directory/Module | Description |
+| :--- | :--- |
+| **`abstractions/`** | Abstract Base Classes (ABCs) defining interfaces for the pluggable ecosystem (Connections, Generators, Orchestrators, Secrets). |
+| **`compilation/`** | Contains the `WorkflowCompiler` (the core engine) and the `MetadataManager`. |
+| **`config/`** | Manages project configuration loading, validation (`pydantic-settings`), and secrets resolution. |
+| **`models/`** | Pydantic models defining the structure of DML (`dml.py`), Workflows (`workflow.py`), and Metrics (`metrics.py`). |
+| **`specifications/`** | The `SpecificationManager` for dynamic sourcing of OMOP CDM DDL from GitHub. |
+| **`discovery.py`** | The `DiscoveryManager` for locating and loading Providers and Orchestrators via entry points. |
+| **`exceptions.py`** | Custom exception classes (e.g., `CompilationError`, `ConfigurationError`). |
+| **`sql_tools.py`** | Utilities for Jinja rendering, SQL parsing (`sqlparse`), and query tagging. |
+
+-----
+
+### 5\. Core Components and Functionality
+
+**5.1. Abstractions**
+These interfaces define the contracts between the Core and the pluggable components.
+
+  * **`BaseConnection` (abstractions/connections.py):** Defines connectivity. Key features include mandatory `tenacity` retries in `connect()`, and the URI-based `bulk_load()` method (enforcing Zero Data Movement). It also exposes a `ScalabilityTier` enum to advise users on platform suitability.
+  * **`BaseSQLGenerator` (abstractions/generators.py):** Compiles `DMLDefinition` into dialect-specific SQL. The `generate_transform_sql` method must produce idempotent SQL (enforcing Automated Idempotency).
+  * **`BaseDDLGenerator` (abstractions/generators.py):** Generates DDL statements based on the `CDMSpecification`.
+  * **`BaseOrchestrator` (abstractions/orchestrators.py):** Defines the contract for executing a `CompiledWorkflowPlan`.
+
+**5.2. Declarative DML Schema (models/dml.py)**
+The core defines the Pydantic schema for transformations. The `DMLDefinition` model includes:
+
+  * Target and Source definitions.
+  * `idempotency_keys`: Critical fields used by the `BaseSQLGenerator` for `MERGE` operations.
+  * `mappings`: A discriminated union defining data mapping logic:
+      * `DirectMapping`: Column-to-column.
+      * `ExpressionMapping`: A SQL expression.
+      * `ConstantMapping`: A static value.
+
+**5.3. Workflow Models and Compilation**
+
+  * **`WorkflowConfig` (models/workflow.py):** The input definition (DAG), containing steps (DML, BulkLoad, DDL) and their dependencies.
+  * **`CompiledWorkflowPlan` (models/workflow.py):** The output artifact of the compiler. This executable plan contains fully rendered SQL (`CompiledSQLStep`) or resolved bulk load instructions (`CompiledBulkLoadStep`).
+  * **`WorkflowCompiler` (compilation/compiler.py):** The central engine. It validates the DAG (using `networkx`), initializes the appropriate Generators, iterates through the steps, compiles DML/DDL into SQL, resolves URIs, applies query tags, and outputs the `CompiledWorkflowPlan`.
+
+**5.4. Specification Manager (specifications/)**
+Implements Dynamic CDM Sourcing. The `SpecificationManager` fetches OMOP CDM structural definitions from the OHDSI GitHub repository. It uses `requests` for fetching, `tenacity` for resilience, and `diskcache` for caching the results locally. It parses the raw data into a standardized `CDMSpecification` model.
+
+**5.5. Discovery Manager (discovery.py)**
+Manages the discovery and instantiation of pluggable components using Python's `importlib.metadata.entry_points` mechanism. It discovers components via specific entry point groups:
+
+  * `omopcloudetl.providers`
+  * `omopcloudetl.orchestrators`
+  * `omopcloudetl.secrets`
+
+-----
+
+### 6\. Installation and Dependencies
+
+`omopcloudetl-core` requires Python 3.10 or later.
+
+```bash
+pip install omopcloudetl-core
+```
+
+Key dependencies managed via Poetry include:
+
+  * **`pydantic` (\>=2.0)** and **`pydantic-settings`**: Configuration and data modeling.
+  * **`PyYAML`**: Parsing workflow and DML definitions.
+  * **`Jinja2`**: Template rendering.
+  * **`networkx`**: DAG validation.
+  * **`tenacity`**: Resilience framework (retries).
+  * **`requests`** and **`diskcache`**: Fetching and caching CDM specifications.
+  * **`importlib-metadata`**: Plugin discovery.
+
+-----
+
+### 7\. Codebase Comparison to Specification
+
+The `omopcloudetl-core` codebase is a complete and faithful implementation of the 8-phase build specification. It successfully embodies all the architectural principles and component responsibilities outlined.
 
 | Specification Phase | Component | Implemented In | Status & Notes |
 | :--- | :--- | :--- | :--- |
 | **Phase 0: Setup** | Project Structure & Dependencies | `pyproject.toml`, `src/omopcloudetl_core/` | **Complete**. All specified dependencies and the full directory structure are in place. |
-| **Phase 1: Core Infra** | Custom Exceptions & Logging | `exceptions.py`, `logging.py` | **Complete**. A full hierarchy of custom exceptions and a centralized, colorized logger are implemented. |
+| **Phase 1: Core Infra** | Custom Exceptions & Logging | `exceptions.py`, `logging.py` | **Complete**. A full hierarchy of custom exceptions and a centralized logger are implemented. |
 | **Phase 2: Config** | Secrets Abstraction & Config Models | `abstractions/secrets.py`, `config/models.py`, `config/manager.py` | **Complete**. `ConfigManager` properly loads YAML, resolves secrets via the `DiscoveryManager`, and populates Pydantic models. |
 | **Phase 3: Core Models** | Metrics & DML Schema | `models/metrics.py`, `models/dml.py` | **Complete**. The Pydantic models for observability (`LoadMetrics`) and the declarative DML schema (using discriminated unions) are fully defined. |
 | **Phase 4: Abstractions**| `BaseConnection`, `BaseSQLGenerator`, `BaseOrchestrator` | `abstractions/` | **Complete**. All core abstract base classes are defined as per the specification, enforcing the key architectural patterns. |
